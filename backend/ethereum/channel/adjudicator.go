@@ -85,8 +85,8 @@ func (a *Adjudicator) callRegister(ctx context.Context, req channel.AdjudicatorR
 	return a.call(ctx, req, a.contract.Register, Register)
 }
 
-func (a *Adjudicator) callConclude(ctx context.Context, req channel.AdjudicatorReq, subStates channel.StateMap) error {
-	ethSubStates := toEthSubStates(req.Tx.State, subStates)
+func (a *Adjudicator) callConclude(ctx context.Context, req channel.AdjudicatorReq, subChannels channel.ChannelMap) error {
+	ethSubParams, ethSubStates := toEthSubParamsAndState(req.Tx.State, subChannels)
 
 	conclude := func(
 		opts *bind.TransactOpts,
@@ -94,7 +94,7 @@ func (a *Adjudicator) callConclude(ctx context.Context, req channel.AdjudicatorR
 		state adjudicator.ChannelState,
 		_ [][]byte,
 	) (*types.Transaction, error) {
-		return a.contract.Conclude(opts, params, state, ethSubStates)
+		return a.contract.Conclude(opts, params, state, ethSubParams, ethSubStates)
 	}
 
 	return a.call(ctx, req, conclude, Conclude)
@@ -154,18 +154,59 @@ func ValidateAdjudicator(ctx context.Context,
 	return validateContract(ctx, backend, adjudicatorAddr, adjudicator.AdjudicatorBinRuntime)
 }
 
-// toEthSubStates generates a channel tree in depth-first order.
-func toEthSubStates(state *channel.State, subStates channel.StateMap) (ethSubStates []adjudicator.ChannelState) {
+// toEthSubParamsAndState generates a channel tree in depth-first order.
+func toEthSubParamsAndState(state *channel.State, subChannels channel.ChannelMap) (ethSubParams []adjudicator.ChannelParams, ethSubStates []adjudicator.ChannelState) {
 	for _, subAlloc := range state.Locked {
-		subState, ok := subStates[subAlloc.ID]
+		subChannel, ok := subChannels[subAlloc.ID]
 		if !ok {
 			log.Panic("sub-state not found")
 		}
-		ethSubStates = append(ethSubStates, ToEthState(subState))
-		if len(subState.Locked) > 0 {
-			_subSubStates := toEthSubStates(subState, subStates)
+		ethSubParams = append(ethSubParams, ToEthParams(subChannel.Params))
+		ethSubStates = append(ethSubStates, ToEthState(subChannel.State))
+		if len(subChannel.Locked) > 0 {
+			_subSubParams, _subSubStates := toEthSubParamsAndState(subChannel.State, subChannels)
+			ethSubParams = append(ethSubParams, _subSubParams...)
 			ethSubStates = append(ethSubStates, _subSubStates...)
 		}
 	}
 	return
+}
+
+func (a *Adjudicator) RegisterAssetHolder(ctx context.Context, asset common.Address, assetHolder common.Address) error {
+	return a.callWithoutState(ctx, func(opts *bind.TransactOpts) (*types.Transaction, error) {
+		return a.contract.RegisterAssetHolder(opts, asset, assetHolder)
+	}, RegisterAssetHolder)
+}
+
+type adjFuncWithoutState = func(opts *bind.TransactOpts) (*types.Transaction, error)
+
+// callWithoutState is a wrapper around contract calls via function `fn`.
+func (a *Adjudicator) callWithoutState(ctx context.Context, fn adjFuncWithoutState, txType OnChainTxType) error {
+	tx, err := func() (*types.Transaction, error) {
+		if !a.mu.TryLockCtx(ctx) {
+			return nil, errors.Wrap(ctx.Err(), "context canceled while acquiring tx lock")
+		}
+		defer a.mu.Unlock()
+
+		trans, err := a.NewTransactor(ctx, GasLimit, a.txSender)
+		if err != nil {
+			return nil, errors.WithMessage(err, "creating transactor")
+		}
+		tx, err := fn(trans)
+		if err != nil {
+			err = checkIsChainNotReachableError(err)
+			return nil, errors.WithMessage(err, "calling adjudicator function")
+		}
+		log.Debugf("Sent transaction %v", tx.Hash().Hex())
+		return tx, nil
+	}()
+	if err != nil {
+		return err
+	}
+
+	_, err = a.ConfirmTransaction(ctx, tx, a.txSender)
+	if errors.Is(err, errTxTimedOut) {
+		err = client.NewTxTimedoutError(txType.String(), tx.Hash().Hex(), err.Error())
+	}
+	return errors.WithMessage(err, "mining transaction")
 }

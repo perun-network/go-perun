@@ -43,6 +43,7 @@ const (
 	Conclude
 	ConcludeFinal
 	Withdraw
+	RegisterAssetHolder
 )
 
 var onChainTxTypeNames = [...]string{
@@ -52,6 +53,7 @@ var onChainTxTypeNames = [...]string{
 	"conclude",
 	"concludeFinal",
 	"withdraw",
+	"registerAssetHolder",
 }
 
 func (t OnChainTxType) String() string {

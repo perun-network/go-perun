@@ -148,6 +148,20 @@ func NewRandomParamsAndState(rng *rand.Rand, opts ...RandomOpt) (params *channel
 	return
 }
 
+// NewRandomChannel generates a new random `channel.Channel`.
+// Options: all from `NewRandomParams` and `NewRandomState`.
+func NewRandomChannel(rng *rand.Rand, opts ...RandomOpt) (ch *channel.Channel) {
+	opt := mergeRandomOpts(opts...)
+
+	params := NewRandomParams(rng, opt)
+	ch = &channel.Channel{
+		Params: params,
+		State:  NewRandomState(rng, WithParams(params), opt),
+	}
+
+	return
+}
+
 // NewRandomParams generates a new random `channel.Params`.
 // Options: `WithParams`, `WithNumParts`, `WithParts`, `WithFirstPart`, `WithNonce`, `WithChallengeDuration`
 // and all from `NewRandomApp`.

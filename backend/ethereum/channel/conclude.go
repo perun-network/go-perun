@@ -34,7 +34,7 @@ const secondaryWaitBlocks = 2
 //   - if found, channel is already concluded and success is returned
 //   - if none found, conclude/concludeFinal is called on the adjudicator
 // - it waits for a Concluded event from the blockchain.
-func (a *Adjudicator) ensureConcluded(ctx context.Context, req channel.AdjudicatorReq, subStates channel.StateMap) error {
+func (a *Adjudicator) ensureConcluded(ctx context.Context, req channel.AdjudicatorReq, subChannels channel.ChannelMap) error {
 	// Listen for Concluded event.
 	watchOpts, err := a.NewWatchOpts(ctx)
 	if err != nil {
@@ -70,7 +70,7 @@ func (a *Adjudicator) ensureConcluded(ctx context.Context, req channel.Adjudicat
 	if req.Tx.IsFinal {
 		err = errors.WithMessage(a.callConcludeFinal(ctx, req), "calling concludeFinal")
 	} else {
-		err = errors.WithMessage(a.callConclude(ctx, req, subStates), "calling conclude")
+		err = errors.WithMessage(a.callConclude(ctx, req, subChannels), "calling conclude")
 	}
 	if IsErrTxFailed(err) {
 		a.log.Warn("Calling conclude(Final) failed, waiting for event anyways...")

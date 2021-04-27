@@ -109,6 +109,7 @@ func NewSetup(t *testing.T, rng *rand.Rand, n int) *Setup {
 		depositors := map[ethchannel.Asset]ethchannel.Depositor{asset: new(ethchannel.ETHDepositor)}
 		s.Funders[i] = ethchannel.NewFunder(cb, accounts, depositors)
 		s.Adjs[i] = NewSimAdjudicator(cb, adjudicator, common.Address(*s.Recvs[i]), s.Accs[i].Account)
+		s.Adjs[i].RegisterAssetHolder(ctx, s.Asset, s.Asset)
 	}
 
 	return s

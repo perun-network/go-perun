@@ -25,7 +25,7 @@ import (
 	pkgtest "perun.network/go-perun/pkg/test"
 )
 
-func Test_toEthSubStates(t *testing.T) {
+func Test_toEthSubParamsAndStates(t *testing.T) {
 	var (
 		rng    = pkgtest.Prng(t)
 		assert = assert.New(t)
@@ -33,72 +33,81 @@ func Test_toEthSubStates(t *testing.T) {
 
 	tests := []struct {
 		title string
-		setup func() (state *channel.State, subStates channel.StateMap, expected []adjudicator.ChannelState)
+		setup func() (channel *channel.Channel, subChannels channel.ChannelMap, expectedParams []adjudicator.ChannelParams, expectedStates []adjudicator.ChannelState)
 	}{
 		{
 			title: "nil map gives nil slice",
-			setup: func() (state *channel.State, subStates channel.StateMap, expected []adjudicator.ChannelState) {
-				return channeltest.NewRandomState(rng), nil, nil
+			setup: func() (channel *channel.Channel, subChannels channel.ChannelMap, expectedParams []adjudicator.ChannelParams, expectedStates []adjudicator.ChannelState) {
+				return channeltest.NewRandomChannel(rng), nil, nil, nil
 			},
 		},
 		{
 			title: "fresh map gives nil slice",
-			setup: func() (state *channel.State, subStates channel.StateMap, expected []adjudicator.ChannelState) {
-				return channeltest.NewRandomState(rng), nil, nil
+			setup: func() (channel *channel.Channel, subChannels channel.ChannelMap, expectedParams []adjudicator.ChannelParams, expectedStates []adjudicator.ChannelState) {
+				return channeltest.NewRandomChannel(rng), nil, nil, nil
 			},
 		},
 		{
 			title: "1 layer of sub-channels",
-			setup: func() (state *channel.State, subStates channel.StateMap, expected []adjudicator.ChannelState) {
+			setup: func() (channel *channel.Channel, subChannels channel.ChannelMap, expectedParams []adjudicator.ChannelParams, expectedStates []adjudicator.ChannelState) {
 				// ch[0]( ch[1], ch[2], ch[3] )
-				ch := genStates(rng, 4)
+				ch := genChannels(rng, 4)
 				ch[0].AddSubAlloc(*ch[1].ToSubAlloc())
 				ch[0].AddSubAlloc(*ch[2].ToSubAlloc())
 				ch[0].AddSubAlloc(*ch[3].ToSubAlloc())
-				return ch[0], toStateMap(ch[1:]...), toEthStates(ch[1:]...)
+				return ch[0], toChannelMap(ch[1:]...), toEthParams(ch[1:]...), toEthStates(ch[1:]...)
 			},
 		},
 		{
 			title: "2 layers of sub-channels",
-			setup: func() (state *channel.State, subStates channel.StateMap, expected []adjudicator.ChannelState) {
+			setup: func() (channel *channel.Channel, subChannels channel.ChannelMap, expectedParams []adjudicator.ChannelParams, expectedStates []adjudicator.ChannelState) {
 				// ch[0]( ch[1]( ch[2], ch[3] ), ch[4], ch[5] (ch[6] ) )
-				ch := genStates(rng, 7)
+				ch := genChannels(rng, 7)
 				ch[0].AddSubAlloc(*ch[1].ToSubAlloc())
 				ch[0].AddSubAlloc(*ch[4].ToSubAlloc())
 				ch[0].AddSubAlloc(*ch[5].ToSubAlloc())
 				ch[1].AddSubAlloc(*ch[2].ToSubAlloc())
 				ch[1].AddSubAlloc(*ch[3].ToSubAlloc())
 				ch[5].AddSubAlloc(*ch[6].ToSubAlloc())
-				return ch[0], toStateMap(ch[1:]...), toEthStates(ch[1:]...)
+				return ch[0], toChannelMap(ch[1:]...), toEthParams(ch[1:]...), toEthStates(ch[1:]...)
 			},
 		},
 	}
 
 	for _, tc := range tests {
-		state, subStates, expected := tc.setup()
-		got := toEthSubStates(state, subStates)
-		assert.Equal(expected, got, tc.title)
+		ch, subChannels, expectedParams, expectedStates := tc.setup()
+		gotParams, gotStates := toEthSubParamsAndState(ch.State, subChannels)
+		assert.Equal(expectedParams, gotParams, tc.title)
+		assert.Equal(expectedStates, gotStates, tc.title)
 	}
 }
 
-func genStates(rng *rand.Rand, n int) (states []*channel.State) {
-	states = make([]*channel.State, n)
-	for i := range states {
-		states[i] = channeltest.NewRandomState(rng)
+func genChannels(rng *rand.Rand, n int) (channels []*channel.Channel) {
+	channels = make([]*channel.Channel, n)
+	for i := range channels {
+		channels[i] = channeltest.NewRandomChannel(rng)
 	}
 	return
 }
 
-func toStateMap(states ...*channel.State) (_states channel.StateMap) {
-	_states = channel.MakeStateMap()
-	_states.Add(states...)
+func toChannelMap(channels ...*channel.Channel) (_channels channel.ChannelMap) {
+	_channels = channel.MakeChannelMap()
+	_channels.Add(channels...)
 	return
 }
 
-func toEthStates(states ...*channel.State) (_states []adjudicator.ChannelState) {
-	_states = make([]adjudicator.ChannelState, len(states))
-	for i, s := range states {
-		_states[i] = ToEthState(s)
+func toEthParams(channels ...*channel.Channel) (params []adjudicator.ChannelParams) {
+	params = make([]adjudicator.ChannelParams, len(channels))
+	for i, s := range channels {
+		params[i] = ToEthParams(s.Params)
+	}
+	return
+}
+
+func toEthStates(channels ...*channel.Channel) (states []adjudicator.ChannelState) {
+	states = make([]adjudicator.ChannelState, len(channels))
+	for i, s := range channels {
+		states[i] = ToEthState(s.State)
 	}
 	return
 }

@@ -157,7 +157,7 @@ func (c *Channel) Settle(ctx context.Context, secondary bool) error {
 // to be mined.
 // Returns ChainNotReachableError if the connection to the blockchain network
 // fails when sending a transaction to / reading from the blockchain.
-func (c *Channel) SettleWithSubchannels(ctx context.Context, subStates channel.StateMap, secondary bool) error {
+func (c *Channel) SettleWithSubchannels(ctx context.Context, subChannels channel.ChannelMap, secondary bool) error {
 	// Lock channel machine.
 	if !c.machMtx.TryLockCtx(ctx) {
 		return errors.WithMessage(ctx.Err(), "locking machine")
@@ -172,7 +172,7 @@ func (c *Channel) SettleWithSubchannels(ctx context.Context, subStates channel.S
 	case c.IsLedgerChannel():
 		req := c.machine.AdjudicatorReq()
 		req.Secondary = secondary
-		if err := c.adjudicator.Withdraw(ctx, req, subStates); err != nil {
+		if err := c.adjudicator.Withdraw(ctx, req, subChannels); err != nil {
 			return errors.WithMessage(err, "calling Withdraw")
 		}
 	case c.IsSubChannel():
