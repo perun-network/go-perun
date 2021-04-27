@@ -45,9 +45,9 @@ type (
 		// final outcome is set on the asset holders and funds are withdrawn
 		// (dependent on the architecture of the contracts). It must be taken into
 		// account that a peer might already have concluded the same channel.
-		// If the channel has locked funds in sub-channels, the states of the
-		// corresponding sub-channels need to be supplied additionally.
-		Withdraw(context.Context, AdjudicatorReq, StateMap) error
+		// If the channel has locked funds in sub-channels, the sub-channels
+		// must be provided additionally.
+		Withdraw(context.Context, AdjudicatorReq, ChannelMap) error
 
 		// Progress should try to progress an on-chain registered state to the new
 		// state given in ProgressReq. The Transaction field only needs to
@@ -156,9 +156,24 @@ type (
 		Wait(context.Context) error
 	}
 
-	// StateMap represents a channel state tree.
-	StateMap map[ID]*State
+	// // StateMap represents a channel state tree.
+	// StateMap map[ID]*State
+
+	// ChannelMap represents a set of channels accessible by their ID.
+	ChannelMap map[ID]*Channel
+
+	Channel struct {
+		*Params
+		*State
+	}
 )
+
+func NewChannel(params *Params, state *State) *Channel {
+	return &Channel{
+		Params: params,
+		State:  state,
+	}
+}
 
 // NewProgressReq creates a new ProgressReq object.
 func NewProgressReq(ar AdjudicatorReq, newState *State, sig wallet.Sig) *ProgressReq {
@@ -240,14 +255,14 @@ func (t *TimeTimeout) String() string {
 	return fmt.Sprintf("<Timeout: %v>", t.Time)
 }
 
-// MakeStateMap creates a new StateMap object.
-func MakeStateMap() StateMap {
-	return make(map[ID]*State)
+// MakeChannelMap creates a new ChannelMap object.
+func MakeChannelMap() ChannelMap {
+	return make(map[ID]*Channel)
 }
 
-// Add adds the given states to the state map.
-func (m StateMap) Add(states ...*State) {
-	for _, s := range states {
-		m[s.ID] = s
+// Add adds a list of channels to the map.
+func (m ChannelMap) Add(channels ...*Channel) {
+	for _, c := range channels {
+		m[c.State.ID] = c
 	}
 }

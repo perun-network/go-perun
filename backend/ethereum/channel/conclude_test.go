@@ -154,12 +154,12 @@ func TestAdjudicator_ConcludeWithSubChannels(t *testing.T) {
 
 	// 3. withdraw channel with sub-channels
 
-	subStates := channel.MakeStateMap()
-	addSubStates(subStates, ledgerChannel)
-	addSubStates(subStates, subChannels...)
-	addSubStates(subStates, subSubChannels...)
+	subChannelMap := channel.MakeChannelMap()
+	addSubChannels(subChannelMap, ledgerChannel)
+	addSubChannels(subChannelMap, subChannels...)
+	addSubChannels(subChannelMap, subSubChannels...)
 
-	assert.NoError(withdraw(ctx, adj, accounts, ledgerChannel, subStates))
+	assert.NoError(withdraw(ctx, adj, accounts, ledgerChannel, subChannelMap))
 }
 
 type paramsAndState struct {
@@ -226,13 +226,13 @@ func register(ctx context.Context, adj *test.SimAdjudicator, accounts []*keystor
 	return nil
 }
 
-func addSubStates(subStates channel.StateMap, channels ...paramsAndState) {
+func addSubChannels(subChannels channel.ChannelMap, channels ...paramsAndState) {
 	for _, c := range channels {
-		subStates.Add(c.state.Clone())
+		subChannels.Add(channel.NewChannel(c.params, c.state))
 	}
 }
 
-func withdraw(ctx context.Context, adj *test.SimAdjudicator, accounts []*keystore.Account, c paramsAndState, subStates channel.StateMap) error {
+func withdraw(ctx context.Context, adj *test.SimAdjudicator, accounts []*keystore.Account, c paramsAndState, subChannels channel.ChannelMap) error {
 	tx, err := signState(accounts, c.params, c.state)
 	if err != nil {
 		return err
@@ -247,7 +247,7 @@ func withdraw(ctx context.Context, adj *test.SimAdjudicator, accounts []*keystor
 			Secondary: i != 0,
 		}
 
-		if err := adj.Withdraw(ctx, req, subStates); err != nil {
+		if err := adj.Withdraw(ctx, req, subChannels); err != nil {
 			return err
 		}
 	}
