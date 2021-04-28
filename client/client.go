@@ -34,15 +34,16 @@ import (
 //
 // Currently, only the two-party protocol is fully implemented.
 type Client struct {
-	address       wire.Address
-	conn          clientConn
-	channels      chanRegistry
-	funder        channel.Funder
-	adjudicator   channel.Adjudicator
-	wallet        wallet.Wallet
-	pr            persistence.PersistRestorer
-	log           log.Logger // structured logger for this client
-	version1Cache version1Cache
+	address                 wire.Address
+	conn                    clientConn
+	channels                chanRegistry
+	funder                  channel.Funder
+	adjudicator             channel.Adjudicator
+	wallet                  wallet.Wallet
+	pr                      persistence.PersistRestorer
+	log                     log.Logger // structured logger for this client
+	version1Cache           version1Cache
+	fundingProposalWatchers *VirtualChannelFundingProposalWatchers
 
 	sync.Closer
 }
@@ -99,6 +100,9 @@ func New(
 		wallet:      wallet,
 		pr:          persistence.NonPersistRestorer,
 		log:         log,
+		fundingProposalWatchers: &VirtualChannelFundingProposalWatchers{
+			entries: make(map[channel.ID]chan struct{}),
+		},
 	}, nil
 }
 
@@ -163,6 +167,10 @@ func (c *Client) Handle(ph ProposalHandler, uh UpdateHandler) {
 			go c.handleChannelProposal(ph, env.Sender, msg.(*LedgerChannelProposal))
 		case wire.SubChannelProposal:
 			go c.handleChannelProposal(ph, env.Sender, msg.(*SubChannelProposal))
+		case wire.VirtualChannelProposal:
+			go c.handleChannelProposal(ph, env.Sender, msg.(*VirtualChannelProposal))
+		case wire.VirtualChannelFundingProposal:
+			go c.handleChannelUpdate(uh, env.Sender, msg.(*virtualChannelFundingProposal))
 		case wire.ChannelUpdate:
 			go c.handleChannelUpdate(uh, env.Sender, msg.(*msgChannelUpdate))
 		case wire.ChannelSync:
