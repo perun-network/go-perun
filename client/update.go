@@ -269,6 +269,12 @@ func (c *Channel) handleUpdateReq(
 
 	responder := &UpdateResponder{channel: c, pidx: pidx, req: req}
 
+	if err := c.machine.CheckUpdate(req.Base().State, req.Base().ActorIdx, req.Base().Sig, pidx); err != nil {
+		// TODO: how to handle invalid updates? Just drop and ignore them?
+		c.logPeer(pidx).Warnf("invalid update received: %v", err)
+		return
+	}
+
 	if ui, ok := c.subChannelFundings.Filter(req.Base().ChannelUpdate); ok {
 		ui.HandleUpdate(req.Base().ChannelUpdate, responder)
 		return
@@ -280,12 +286,6 @@ func (c *Channel) handleUpdateReq(
 	}
 
 	if err := c.validTwoPartyUpdate(req.Base().ChannelUpdate, pidx); err != nil {
-		// TODO: how to handle invalid updates? Just drop and ignore them?
-		c.logPeer(pidx).Warnf("invalid update received: %v", err)
-		return
-	}
-
-	if err := c.machine.CheckUpdate(req.Base().State, req.Base().ActorIdx, req.Base().Sig, pidx); err != nil {
 		// TODO: how to handle invalid updates? Just drop and ignore them?
 		c.logPeer(pidx).Warnf("invalid update received: %v", err)
 		return
