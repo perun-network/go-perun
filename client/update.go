@@ -332,7 +332,7 @@ func (c *Channel) handleUpdateAcc(
 	}
 
 	// If subchannel is final, register settlement update at parent channel.
-	if c.IsSubChannel() && req.ChannelUpdate.State.IsFinal {
+	if c.HasParent() && req.ChannelUpdate.State.IsFinal {
 		c.Parent().registerSubChannelSettlement(c.ID(), req.ChannelUpdate.State.Balances)
 	}
 
