@@ -175,7 +175,7 @@ func (c *Channel) SettleWithSubchannels(ctx context.Context, subChannels channel
 		if err := c.adjudicator.Withdraw(ctx, req, subChannels); err != nil {
 			return errors.WithMessage(err, "calling Withdraw")
 		}
-	case c.IsSubChannel():
+	case c.HasParent():
 		if c.hasLockedFunds() {
 			return errors.New("cannot settle off-chain with locked funds")
 		}
