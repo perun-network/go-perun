@@ -41,7 +41,7 @@ func (c *Client) handleChannelUpdate(uh UpdateHandler, p wire.Address, m Channel
 		return
 	}
 	pidx := ch.Idx() ^ 1
-	ch.handleUpdateReq(pidx, m, uh)
+	ch.handleUpdateReq(pidx, m, uh, c)
 }
 
 func (c *Client) cacheVersion1Update(uh UpdateHandler, p wire.Address, m ChannelUpdateProposal) bool {
@@ -157,6 +157,15 @@ func (c *Channel) Update(ctx context.Context, next *channel.State) (err error) {
 
 // Like Update, but assumes channel locked and update validated.
 func (c *Channel) update(ctx context.Context, next *channel.State) (err error) {
+	return c.updateGeneric(ctx, next, func(mcu *msgChannelUpdate) wire.Msg { return mcu })
+}
+
+// Like update, but for generic update types.
+func (c *Channel) updateGeneric(
+	ctx context.Context,
+	next *channel.State,
+	prepareMsg func(*msgChannelUpdate) wire.Msg,
+) (err error) {
 	up := makeChannelUpdate(next, c.machine.Idx())
 	if err = c.machine.Update(ctx, up.State, up.ActorIdx); err != nil {
 		return errors.WithMessage(err, "updating machine")
@@ -189,7 +198,8 @@ func (c *Channel) update(ctx context.Context, next *channel.State) (err error) {
 		ChannelUpdate: up,
 		Sig:           sig,
 	}
-	if err = c.conn.Send(ctx, msgUpdate); err != nil {
+	msg := prepareMsg(msgUpdate)
+	if err = c.conn.Send(ctx, msg); err != nil {
 		return errors.WithMessage(err, "sending update")
 	}
 
@@ -263,6 +273,7 @@ func (c *Channel) handleUpdateReq(
 	pidx channel.Index,
 	req ChannelUpdateProposal,
 	uh UpdateHandler,
+	client *Client,
 ) {
 	c.machMtx.Lock() // Lock machine while update is in progress.
 	defer c.machMtx.Unlock()
@@ -272,6 +283,11 @@ func (c *Channel) handleUpdateReq(
 	if err := c.machine.CheckUpdate(req.Base().State, req.Base().ActorIdx, req.Base().Sig, pidx); err != nil {
 		// TODO: how to handle invalid updates? Just drop and ignore them?
 		c.logPeer(pidx).Warnf("invalid update received: %v", err)
+		return
+	}
+
+	if prop, ok := req.(*virtualChannelFundingProposal); ok {
+		client.handleVirtualChannelFundingProposal(c, prop, responder) //TODO wait until two matching virtual channel funding proposals are ready or abort
 		return
 	}
 

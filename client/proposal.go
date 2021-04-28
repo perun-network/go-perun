@@ -149,7 +149,7 @@ func (c *Client) ProposeChannel(ctx context.Context, prop ChannelProposal) (*Cha
 
 	// 1. validate input
 	peer := c.proposalPeers(prop)[proposeeIdx]
-	if err := c.validTwoPartyProposal(prop, proposerIdx, peer); err != nil {
+	if err := c.validTwoPartyProposal(prop, proposerIdx, peer); err != nil { //TODO check if this works for VirtualChannelProposal
 		return nil, errors.WithMessage(err, "invalid channel proposal")
 	}
 
@@ -505,6 +505,9 @@ func (c *Client) fundChannel(ctx context.Context, ch *Channel, prop ChannelPropo
 		return errors.WithMessage(err, "funding ledger channel")
 	case wire.SubChannelProposal:
 		err := c.fundSubchannel(ctx, prop.(*SubChannelProposal), ch)
+		return errors.WithMessage(err, "funding subchannel")
+	case wire.VirtualChannelProposal:
+		err := c.fundVirtualChannel(ctx, ch, prop.(*VirtualChannelProposal))
 		return errors.WithMessage(err, "funding subchannel")
 	}
 	c.log.Panicf("invalid channel proposal type %T", prop)

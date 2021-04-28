@@ -59,7 +59,9 @@ func newChannelConn(id channel.ID, peers []wire.Address, idx channel.Index, sub 
 	}()
 
 	isUpdateRes := func(e *wire.Envelope) bool {
-		ok := e.Msg.Type() == wire.ChannelUpdateAcc || e.Msg.Type() == wire.ChannelUpdateRej
+		ok := e.Msg.Type() == wire.ChannelUpdateAcc ||
+			e.Msg.Type() == wire.ChannelUpdateRej ||
+			e.Msg.Type() == wire.VirtualChannelFundingProposal
 		return ok && e.Msg.(ChannelMsg).ID() == id
 	}
 

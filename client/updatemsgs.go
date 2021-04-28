@@ -39,6 +39,11 @@ func init() {
 			var m msgChannelUpdateRej
 			return &m, m.Decode(r)
 		})
+	wire.RegisterDecoder(wire.VirtualChannelFundingProposal,
+		func(r io.Reader) (wire.Msg, error) {
+			var m virtualChannelFundingProposal
+			return &m, m.Decode(r) //TODO implement Decode() and Type()
+		})
 }
 
 type (
@@ -93,6 +98,14 @@ type (
 		Version uint64
 		// Reason states why the sender rejectes the proposed new state.
 		Reason string
+	}
+
+	// virtualChannelFundingProposal is a channel proposal for virtual channels.
+	virtualChannelFundingProposal struct {
+		msgChannelUpdate
+		ChannelParams         channel.Params
+		VersionZeroState      channel.State
+		VersionZeroSignatures []wallet.Sig
 	}
 )
 
