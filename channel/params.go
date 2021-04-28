@@ -172,10 +172,19 @@ func (p *Params) Encode(w stdio.Writer) error {
 
 // Decode uses the pkg/io module to deserialize a params instance.
 func (p *Params) Decode(r stdio.Reader) error {
-	return io.Decode(r,
+	err := io.Decode(r,
 		&p.id,
 		&p.ChallengeDuration,
 		(*wallet.AddressesWithLen)(&p.Parts),
 		OptAppDec{&p.App},
 		&p.Nonce)
+	if err != nil {
+		return err
+	}
+
+	if p.id != CalcID(p) {
+		return errors.New("invalid channel ID")
+	}
+
+	return nil
 }
