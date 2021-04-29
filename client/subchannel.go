@@ -20,16 +20,41 @@ import (
 	"github.com/pkg/errors"
 
 	"perun.network/go-perun/channel"
+	"perun.network/go-perun/wallet"
 )
 
 // IsLedgerChannel returns whether the channel is a ledger channel.
+// A ledger channel is a channel that has no parent channel.
 func (c *Channel) IsLedgerChannel() bool {
 	return c.Parent() == nil
 }
 
-// HasParent returns whether the channel is a sub-channel.
-func (c *Channel) HasParent() bool {
-	return c.Parent() != nil
+// IsSubChannel returns whether the channel is a sub-channel.
+// A sub-channel is a channel that has a parent channel with the same
+// participants.
+func (c *Channel) IsSubChannel() bool {
+	return c.Parent() != nil && equalParticipants(c.Parent().Params().Parts, c.Params().Parts)
+}
+
+// IsVirtualChannel returns whether the channel is a virtual channel.
+// A virtual channel is a channel that has a parent channel with different
+// participants.
+func (c *Channel) IsVirtualChannel() bool {
+	return c.Parent() != nil && !equalParticipants(c.Parent().Params().Parts, c.Params().Parts)
+}
+
+func equalParticipants(a, b []wallet.Address) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	for i, _a := range a {
+		if _a != b[i] {
+			return false
+		}
+	}
+
+	return true
 }
 
 func (c *Channel) fundSubChannel(ctx context.Context, id channel.ID, alloc *channel.Allocation) error {
@@ -51,7 +76,7 @@ func (c *Channel) fundSubChannel(ctx context.Context, id channel.ID, alloc *chan
 }
 
 func (c *Channel) withdrawIntoParent(ctx context.Context) error {
-	if !c.HasParent() {
+	if !c.IsSubChannel() {
 		c.Log().Panic("not a sub-channel")
 	} else if !c.machine.State().IsFinal {
 		return errors.New("not final")

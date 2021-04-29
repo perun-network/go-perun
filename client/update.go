@@ -347,9 +347,13 @@ func (c *Channel) handleUpdateAcc(
 		return errors.WithMessage(err, "signing updated state")
 	}
 
-	// If subchannel is final, register settlement update at parent channel.
-	if c.HasParent() && req.Base().State.IsFinal {
-		c.Parent().registerSubChannelSettlement(c.ID(), req.Base().State.Balances)
+	if req.Base().State.IsFinal {
+		// If subchannel is final, register settlement update at parent channel.
+		if c.IsSubChannel() {
+			c.Parent().registerSubChannelSettlement(c.ID(), req.Base().State.Balances)
+		} else if c.IsVirtualChannel(x) {
+
+		}
 	}
 
 	msgUpAcc := &msgChannelUpdateAcc{
