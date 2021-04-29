@@ -75,7 +75,7 @@ func (c *Channel) fundSubChannel(ctx context.Context, id channel.ID, alloc *chan
 	})
 }
 
-func (c *Channel) withdrawIntoParent(ctx context.Context) error {
+func (c *Channel) withdrawSubChannelIntoParent(ctx context.Context) error {
 	if !c.IsSubChannel() {
 		c.Log().Panic("not a sub-channel")
 	} else if !c.machine.State().IsFinal {
