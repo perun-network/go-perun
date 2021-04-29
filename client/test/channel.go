@@ -189,7 +189,7 @@ func (ch *paymentChannel) settleImpl(secondary bool) {
 	assert.NoError(ch.Settle(ctx, secondary))
 	ch.assertBals(ch.State())
 
-	if ch.HasParent() {
+	if ch.IsSubChannel() {
 		// Track parent channel's balances.
 		parentChannel, ok := ch.r.chans.get(ch.Parent().ID())
 		assert.True(ok, "parent channel not found")
