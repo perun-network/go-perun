@@ -18,8 +18,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"perun.network/go-perun/channel"
 	"perun.network/go-perun/channel/persistence"
 	"perun.network/go-perun/wire"
@@ -66,6 +64,7 @@ func (c *Client) handleSyncMsg(peer wire.Address, msg *msgChannelSync) {
 	}
 }
 
+/*
 // syncChannel synchronizes the channel state with the given peer and modifies
 // the current state if required.
 // nolint:unused
@@ -166,3 +165,4 @@ func revisePhase(ch *persistence.Channel) error {
 	ch.PhaseV = channel.Acting
 	return nil
 }
+*/
