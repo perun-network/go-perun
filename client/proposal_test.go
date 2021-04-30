@@ -15,6 +15,7 @@
 package client
 
 import (
+	"context"
 	"testing"
 
 	"github.com/pkg/errors"
@@ -24,7 +25,7 @@ import (
 
 func TestProposalResponder_Accept_Nil(t *testing.T) {
 	p := new(ProposalResponder)
-	_, err := p.Accept(nil, new(LedgerChannelProposalAcc))
+	_, err := p.Accept(context.TODO(), new(LedgerChannelProposalAcc))
 	assert.Error(t, err, "context")
 }
 

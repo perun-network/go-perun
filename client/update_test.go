@@ -18,31 +18,8 @@ import (
 	"testing"
 
 	"github.com/pkg/errors"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"perun.network/go-perun/channel"
 )
-
-func TestUpdateResponder_Accept_NilArgs(t *testing.T) {
-	err := new(UpdateResponder).Accept(nil)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "context")
-}
-
-func TestUpdateResponder_Reject_NilArgs(t *testing.T) {
-	err := new(UpdateResponder).Reject(nil, "reason")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "context")
-}
-
-// Channel.Update() is defined in `client/update.go` so its test can be found
-// here as well.
-func TestChannel_Update_NilArgs(t *testing.T) {
-	err := new(Channel).Update(nil, new(channel.State))
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "context")
-}
 
 func TestRequestTimedOutError(t *testing.T) {
 	var err error = newRequestTimedOutError("", "")
