@@ -48,6 +48,8 @@ type (
 		stages    Stages
 	}
 
+	Role = role
+
 	channelMap struct {
 		entries map[channel.ID]*paymentChannel
 		sync.RWMutex
@@ -163,6 +165,10 @@ func (c *BaseExecConfig) InitBals() [2]*big.Int {
 // App returns the app.
 func (c *BaseExecConfig) App() client.ProposalOpts {
 	return c.app
+}
+
+func MakeRole(setup RoleSetup, t *testing.T, numStages int) (r role) {
+	return makeRole(setup, t, numStages)
 }
 
 // makeRole creates a client for the given setup and wraps it into a Role.

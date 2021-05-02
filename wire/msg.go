@@ -128,6 +128,7 @@ const (
 	VirtualChannelProposal
 	VirtualChannelProposalAcc
 	VirtualChannelFundingProposal
+	VirtualChannelSettlementProposal
 	ChannelProposalRej
 	ChannelUpdate
 	ChannelUpdateAcc
@@ -137,22 +138,23 @@ const (
 )
 
 var typeNames = map[Type]string{
-	Ping:                          "Ping",
-	Pong:                          "Pong",
-	Shutdown:                      "Shutdown",
-	AuthResponse:                  "AuthResponse",
-	LedgerChannelProposal:         "LedgerChannelProposal",
-	LedgerChannelProposalAcc:      "LedgerChannelProposalAcc",
-	SubChannelProposal:            "SubChannelProposal",
-	SubChannelProposalAcc:         "SubChannelProposalAcc",
-	VirtualChannelProposal:        "VirtualChannelProposal",
-	VirtualChannelProposalAcc:     "VirtualChannelProposalAcc",
-	VirtualChannelFundingProposal: "VirtualChannelFundingProposal",
-	ChannelProposalRej:            "ChannelProposalRej",
-	ChannelUpdate:                 "ChannelUpdate",
-	ChannelUpdateAcc:              "ChannelUpdateAcc",
-	ChannelUpdateRej:              "ChannelUpdateRej",
-	ChannelSync:                   "ChannelSync",
+	Ping:                             "Ping",
+	Pong:                             "Pong",
+	Shutdown:                         "Shutdown",
+	AuthResponse:                     "AuthResponse",
+	LedgerChannelProposal:            "LedgerChannelProposal",
+	LedgerChannelProposalAcc:         "LedgerChannelProposalAcc",
+	SubChannelProposal:               "SubChannelProposal",
+	SubChannelProposalAcc:            "SubChannelProposalAcc",
+	VirtualChannelProposal:           "VirtualChannelProposal",
+	VirtualChannelProposalAcc:        "VirtualChannelProposalAcc",
+	VirtualChannelFundingProposal:    "VirtualChannelFundingProposal",
+	VirtualChannelSettlementProposal: "VirtualChannelSettlementProposal",
+	ChannelProposalRej:               "ChannelProposalRej",
+	ChannelUpdate:                    "ChannelUpdate",
+	ChannelUpdateAcc:                 "ChannelUpdateAcc",
+	ChannelUpdateRej:                 "ChannelUpdateRej",
+	ChannelSync:                      "ChannelSync",
 }
 
 // String returns the name of a message type if it is valid and name known

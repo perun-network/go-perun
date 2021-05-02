@@ -287,7 +287,12 @@ func (c *Channel) handleUpdateReq(
 	}
 
 	if prop, ok := req.(*virtualChannelFundingProposal); ok {
-		client.handleVirtualChannelFundingProposal(c, prop, responder) //TODO wait until two matching virtual channel funding proposals are ready or abort
+		client.handleVirtualChannelFundingProposal(c, prop, responder)
+		return
+	}
+
+	if prop, ok := req.(*virtualChannelSettlementProposal); ok {
+		client.handleVirtualChannelSettlementProposal(c, prop, responder)
 		return
 	}
 
@@ -351,8 +356,6 @@ func (c *Channel) handleUpdateAcc(
 		// If subchannel is final, register settlement update at parent channel.
 		if c.IsSubChannel() {
 			c.Parent().registerSubChannelSettlement(c.ID(), req.Base().State.Balances)
-		} else if c.IsVirtualChannel(x) {
-
 		}
 	}
 

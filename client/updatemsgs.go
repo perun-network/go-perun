@@ -103,11 +103,26 @@ type (
 	// virtualChannelFundingProposal is a channel proposal for virtual channels.
 	virtualChannelFundingProposal struct {
 		msgChannelUpdate
-		ChannelParams         channel.Params
-		VersionZeroState      channel.State
-		VersionZeroSignatures []wallet.Sig
+		ChannelParams          channel.Params
+		InitialState           channel.State
+		InitialStateSignatures []wallet.Sig
+	}
+
+	virtualChannelSettlementProposal struct {
+		msgChannelUpdate
+		ChannelParams        channel.Params
+		FinalState           channel.State
+		FinalStateSignatures []wallet.Sig
 	}
 )
+
+func (m *virtualChannelSettlementProposal) Type() wire.Type {
+	return wire.VirtualChannelSettlementProposal
+}
+
+func (m *virtualChannelFundingProposal) Type() wire.Type {
+	return wire.VirtualChannelFundingProposal
+}
 
 func (m *virtualChannelFundingProposal) Base() *msgChannelUpdate {
 	return &m.msgChannelUpdate

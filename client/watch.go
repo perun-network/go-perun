@@ -186,7 +186,7 @@ func (c *Channel) SettleWithSubchannels(ctx context.Context, subChannels channel
 		if c.hasLockedFunds() {
 			return errors.New("cannot settle off-chain with locked funds")
 		}
-		if err := c.withdrawVirtualChannelIntoParent(ctx, "todo: does that work"); err != nil {
+		if err := c.withdrawVirtualChannelIntoParent(ctx); err != nil {
 			return errors.WithMessage(err, "withdrawing into parent channel")
 		}
 	default:
