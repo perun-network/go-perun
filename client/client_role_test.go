@@ -18,9 +18,12 @@ import (
 	"context"
 	"math/rand"
 	"sync"
+	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"perun.network/go-perun/channel"
+	"perun.network/go-perun/client"
 	ctest "perun.network/go-perun/client/test"
 	"perun.network/go-perun/log"
 	wtest "perun.network/go-perun/wallet/test"
@@ -60,6 +63,34 @@ func NewSetups(rng *rand.Rand, names []string) []ctest.RoleSetup {
 	}
 
 	return setup
+}
+
+func NewRoles(rng *rand.Rand, names []string, t *testing.T, numStages int) []ctest.Role {
+	setups := NewSetups(rng, names)
+	roles := make([]ctest.Role, len(setups))
+	for i, setup := range setups {
+		roles[i] = ctest.MakeRole(setup, t, numStages)
+	}
+	return roles
+}
+
+type Client struct {
+	*client.Client
+	*ctest.RoleSetup
+}
+
+func NewClients(rng *rand.Rand, names []string, t *testing.T) []*Client {
+	setups := NewSetups(rng, names)
+	clients := make([]*Client, len(setups))
+	for i, setup := range setups {
+		cl, err := client.New(setup.Identity.Address(), setup.Bus, setup.Funder, setup.Adjudicator, setup.Wallet)
+		assert.NoError(t, err)
+		clients[i] = &Client{
+			Client:    cl,
+			RoleSetup: &setup,
+		}
+	}
+	return clients
 }
 
 type (

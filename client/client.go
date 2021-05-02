@@ -34,16 +34,16 @@ import (
 //
 // Currently, only the two-party protocol is fully implemented.
 type Client struct {
-	address                 wire.Address
-	conn                    clientConn
-	channels                chanRegistry
-	funder                  channel.Funder
-	adjudicator             channel.Adjudicator
-	wallet                  wallet.Wallet
-	pr                      persistence.PersistRestorer
-	log                     log.Logger // structured logger for this client
-	version1Cache           version1Cache
-	fundingProposalWatchers *VirtualChannelFundingProposalWatchers
+	address       wire.Address
+	conn          clientConn
+	channels      chanRegistry
+	funder        channel.Funder
+	adjudicator   channel.Adjudicator
+	wallet        wallet.Wallet
+	pr            persistence.PersistRestorer
+	log           log.Logger // structured logger for this client
+	version1Cache version1Cache
+	stateWatcher  *VirtualChannelFundingProposalWatchers
 
 	sync.Closer
 }
@@ -100,8 +100,8 @@ func New(
 		wallet:      wallet,
 		pr:          persistence.NonPersistRestorer,
 		log:         log,
-		fundingProposalWatchers: &VirtualChannelFundingProposalWatchers{
-			entries: make(map[channel.ID]chan struct{}),
+		stateWatcher: &VirtualChannelFundingProposalWatchers{
+			entries: make(map[[32]byte]StateAndDone),
 		},
 	}, nil
 }

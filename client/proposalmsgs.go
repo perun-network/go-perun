@@ -128,7 +128,8 @@ type (
 	// VirtualChannelProposal is a channel proposal for virtual channels.
 	VirtualChannelProposal struct {
 		SubChannelProposal
-		Peers []wire.Address // Participants' wire addresses.
+		ParentReceiver channel.ID
+		Peers          []wire.Address // Participants' wire addresses.
 	}
 )
 
@@ -564,6 +565,33 @@ func (rej ChannelProposalRej) Encode(w io.Writer) error {
 // Decode decodes a ChannelProposalRej from an io.Reader.
 func (rej *ChannelProposalRej) Decode(r io.Reader) error {
 	return perunio.Decode(r, &rej.ProposalID, &rej.Reason)
+}
+
+// NewVirtualChannelProposal creates a virtual channel proposal.
+func NewVirtualChannelProposal(
+	parent channel.ID,
+	parentReceiver channel.ID,
+	challengeDuration uint64,
+	participant wallet.Address,
+	initBals *channel.Allocation,
+	peers []wire.Address,
+	opts ...ProposalOpts,
+) (prop *VirtualChannelProposal, err error) {
+	sub, err := NewSubChannelProposal(
+		parent,
+		challengeDuration,
+		initBals,
+		opts...,
+	)
+	if err != nil {
+		return
+	}
+	prop = &VirtualChannelProposal{
+		SubChannelProposal: *sub,
+		ParentReceiver:     parentReceiver,
+		Peers:              peers,
+	}
+	return
 }
 
 // ProposalID returns the identifier of this channel proposal request.

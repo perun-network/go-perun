@@ -132,6 +132,11 @@ func (c *Channel) Idx() channel.Index {
 	return c.machine.Idx()
 }
 
+// PartAddress returns our address in the channel.
+func (c *Channel) PartAddress() wallet.Address {
+	return c.Params().Parts[c.Idx()]
+}
+
 // Params returns the channel parameters.
 func (c *Channel) Params() *channel.Params {
 	return c.machine.Params()
@@ -144,6 +149,12 @@ func (c *Channel) State() *channel.State {
 	c.machMtx.Lock()
 	defer c.machMtx.Unlock()
 
+	return c.machine.State()
+}
+
+// state returns the current state without locking the channel mutex.
+// Clone it if you want to modify it.
+func (c *Channel) state() *channel.State {
 	return c.machine.State()
 }
 

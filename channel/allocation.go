@@ -228,6 +228,17 @@ func (b Balances) operate(a Balances, op func(Bal, Bal) Bal) Balances {
 	return c
 }
 
+// Remap remaps the participant order.
+func (b Balances) Remap(m map[int]int) (_b Balances) {
+	_b = b.Clone()
+	for i, bals := range b {
+		for j, bal := range bals {
+			_b[i][m[j]] = bal
+		}
+	}
+	return
+}
+
 // Encode encodes this allocation into an io.Writer.
 func (a Allocation) Encode(w io.Writer) error {
 	if err := a.Valid(); err != nil {
