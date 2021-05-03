@@ -16,6 +16,7 @@ package client
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
@@ -157,6 +158,7 @@ func (c *Client) Handle(ph ProposalHandler, uh UpdateHandler) {
 	for {
 		env, err := c.conn.nextReq(c.Ctx())
 		if err != nil {
+			fmt.Printf("connection error: %v\n", err)
 			c.log.Debug("request receiver closed: ", err)
 			return
 		}
@@ -171,6 +173,8 @@ func (c *Client) Handle(ph ProposalHandler, uh UpdateHandler) {
 			go c.handleChannelProposal(ph, env.Sender, msg.(*VirtualChannelProposal))
 		case wire.VirtualChannelFundingProposal:
 			go c.handleChannelUpdate(uh, env.Sender, msg.(*virtualChannelFundingProposal))
+		case wire.VirtualChannelSettlementProposal:
+			go c.handleChannelUpdate(uh, env.Sender, msg.(*virtualChannelSettlementProposal))
 		case wire.ChannelUpdate:
 			go c.handleChannelUpdate(uh, env.Sender, msg.(*msgChannelUpdate))
 		case wire.ChannelSync:

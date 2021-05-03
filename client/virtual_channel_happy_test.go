@@ -57,25 +57,20 @@ func TestVirtualChannelsOptimistic(t *testing.T) {
 	)
 	alice, bob, ingrid := clients[0], clients[1], clients[2]
 
-	acceptAllProposalHandler := &FunctionProposalHandler{
+	proposalHandlerIngrid := &FunctionProposalHandler{
 		openingProposalHandler: func(cp client.ChannelProposal, pr *client.ProposalResponder) {
 			switch cp := cp.(type) {
 			case *client.LedgerChannelProposal:
 				_, err := pr.Accept(ctx, cp.Accept(ingrid.Identity.Address(), client.WithRandomNonce()))
 				if err != nil {
-					t.Errorf("accepting ledger channel proposal: %v", err)
-				}
-			case *client.VirtualChannelProposal:
-				_, err := pr.Accept(ctx, cp.Accept(client.WithRandomNonce()))
-				if err != nil {
-					t.Errorf("accepting virtual channel proposal: %v", err)
+					t.Fatalf("accepting ledger channel proposal: %v", err)
 				}
 			default:
-				t.Errorf("invalid channel proposal: %v", cp)
+				t.Fatalf("invalid channel proposal: %v", cp)
 			}
 		},
 	}
-	go ingrid.Client.Handle(acceptAllProposalHandler, acceptAllProposalHandler)
+	go ingrid.Client.Handle(proposalHandlerIngrid, proposalHandlerIngrid)
 
 	// Establish ledger channel between Alice and Ingrid.
 	initBalsAlice := []*big.Int{big.NewInt(10), big.NewInt(10)}
@@ -90,12 +85,12 @@ func TestVirtualChannelsOptimistic(t *testing.T) {
 		[]wire.Address{alice.Identity.Address(), ingrid.Identity.Address()},
 	)
 	if err != nil {
-		t.Errorf("creating ledger channel proposal: %v", err)
+		t.Fatalf("creating ledger channel proposal: %v", err)
 	}
 
 	chAliceIngrid, err := alice.ProposeChannel(ctx, lcpAlice)
 	if err != nil {
-		t.Errorf("opening channel between Alice and Ingrid: %v", err)
+		t.Fatalf("opening channel between Alice and Ingrid: %v", err)
 	}
 
 	// Establish ledger channel between Bob and Ingrid.
@@ -111,13 +106,34 @@ func TestVirtualChannelsOptimistic(t *testing.T) {
 		[]wire.Address{bob.Identity.Address(), ingrid.Identity.Address()},
 	)
 	if err != nil {
-		t.Errorf("creating ledger channel proposal: %v", err)
+		t.Fatalf("creating ledger channel proposal: %v", err)
 	}
 
-	chBobIngrid, err := alice.ProposeChannel(ctx, lcpBob)
+	chBobIngrid, err := bob.ProposeChannel(ctx, lcpBob)
 	if err != nil {
-		t.Errorf("opening channel between Alice and Ingrid: %v", err)
+		t.Fatalf("opening channel between Bob and Ingrid: %v", err)
 	}
+
+	// Setup Bob's proposal handler.
+	var chAliceBobBob *client.Channel
+	proposalHandlerBob := &FunctionProposalHandler{
+		openingProposalHandler: func(cp client.ChannelProposal, pr *client.ProposalResponder) {
+			switch cp := cp.(type) {
+			case *client.VirtualChannelProposal:
+				_chAliceBobBob, err := pr.Accept(ctx, cp.Accept(bob.Identity.Address()))
+				if err != nil {
+					t.Fatalf("accepting virtual channel proposal: %v", err)
+				}
+				chAliceBobBob = _chAliceBobBob
+			default:
+				t.Fatalf("invalid channel proposal: %v", cp)
+			}
+		},
+		updateProposalHandler: func(s *channel.State, cu client.ChannelUpdate, ur *client.UpdateResponder) {
+			ur.Accept(ctx)
+		},
+	}
+	go bob.Client.Handle(proposalHandlerBob, proposalHandlerBob)
 
 	// Establish virtual channel between Alice and Bob via Ingrid.
 	initBalsVirtual := []*big.Int{big.NewInt(5), big.NewInt(5)}
@@ -125,7 +141,7 @@ func TestVirtualChannelsOptimistic(t *testing.T) {
 		Assets:   []channel.Asset{asset},
 		Balances: [][]channel.Bal{[]*big.Int{initBalsVirtual[0], initBalsVirtual[1]}},
 	}
-	lcpVirtual, err := client.NewVirtualChannelProposal(
+	vcp, err := client.NewVirtualChannelProposal(
 		chAliceIngrid.ID(),
 		chBobIngrid.ID(),
 		challengeDuration,
@@ -134,27 +150,38 @@ func TestVirtualChannelsOptimistic(t *testing.T) {
 		[]wire.Address{alice.Identity.Address(), bob.Identity.Address()},
 	)
 	if err != nil {
-		t.Errorf("creating ledger channel proposal: %v", err)
+		t.Fatalf("creating virtual channel proposal: %v", err)
 	}
 
-	chAliceBobVirtual, err := alice.ProposeChannel(ctx, lcpVirtual)
+	chAliceBobAlice, err := alice.ProposeChannel(ctx, vcp)
 	if err != nil {
-		t.Errorf("opening channel between Alice and Ingrid: %v", err)
+		t.Fatalf("opening channel between Alice and Bob: %v", err)
 	}
 
-	err = chAliceBobVirtual.UpdateBy(ctx, func(s *channel.State) error {
+	err = chAliceBobAlice.UpdateBy(ctx, func(s *channel.State) error {
 		diff := int64(3)
 		s.Balances[0][0].Sub(s.Balances[0][0], big.NewInt(diff))
-		s.Balances[0][0].Add(s.Balances[0][1], big.NewInt(diff))
+		s.Balances[0][1].Add(s.Balances[0][1], big.NewInt(diff))
 		s.IsFinal = true
 		return nil
 	})
 	if err != nil {
-		t.Errorf("updating virtual channel: %v", err)
+		t.Fatalf("updating virtual channel: %v", err)
 	}
 
-	err = chAliceBobVirtual.Settle(ctx, false)
-	if err != nil {
-		t.Errorf("closing virtual channel: %v", err)
+	errs := make(chan error, 2)
+	go func() {
+		errs <- chAliceBobAlice.Settle(ctx, false)
+	}()
+
+	go func() {
+		errs <- chAliceBobBob.Settle(ctx, false)
+	}()
+
+	if err := <-errs; err != nil {
+		t.Fatalf("closing virtual channel: %v", err)
+	}
+	if err := <-errs; err != nil {
+		t.Fatalf("closing virtual channel: %v", err)
 	}
 }
