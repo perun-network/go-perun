@@ -443,8 +443,21 @@ func (c *Client) completeCPP(
 
 	var parent *Channel
 	var parentChannelID *channel.ID
-	if prop.Type() == wire.SubChannelProposal {
-		parentChannelID = &prop.(*SubChannelProposal).Parent
+	switch prop := prop.(type) {
+	case *SubChannelProposal:
+		parentChannelID = &prop.Parent
+		var ok bool
+		if parent, ok = c.channels.Get(*parentChannelID); !ok {
+			return nil, errors.New("referenced parent channel not found")
+		}
+	case *VirtualChannelProposal:
+		switch partIdx {
+		case proposerIdx:
+			parentChannelID = &prop.Parent
+		case proposeeIdx:
+			parentChannelID = &prop.ParentReceiver
+		}
+
 		var ok bool
 		if parent, ok = c.channels.Get(*parentChannelID); !ok {
 			return nil, errors.New("referenced parent channel not found")
@@ -492,6 +505,10 @@ func (c *Client) mpcppParts(
 			c.log.Panic("unknown parent channel ID")
 		}
 		parts = ch.Params().Parts
+	case *VirtualChannelProposal:
+		parts = participants(
+			p.Proposer,
+			acc.(*VirtualChannelProposalAcc).Responder)
 	default:
 		c.log.Panicf("unhandled %T", p)
 	}
@@ -505,10 +522,10 @@ func (c *Client) fundChannel(ctx context.Context, ch *Channel, prop ChannelPropo
 		return errors.WithMessage(err, "funding ledger channel")
 	case wire.SubChannelProposal:
 		err := c.fundSubchannel(ctx, prop.(*SubChannelProposal), ch)
-		return errors.WithMessage(err, "funding subchannel")
+		return errors.WithMessage(err, "funding sub-channel")
 	case wire.VirtualChannelProposal:
 		err := c.fundVirtualChannel(ctx, ch, prop.(*VirtualChannelProposal))
-		return errors.WithMessage(err, "funding subchannel")
+		return errors.WithMessage(err, "funding virtual channel")
 	}
 	c.log.Panicf("invalid channel proposal type %T", prop)
 	return nil

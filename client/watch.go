@@ -164,6 +164,12 @@ func (c *Channel) SettleWithSubchannels(ctx context.Context, subChannels channel
 	}
 	defer c.machMtx.Unlock()
 
+	if c.IsSubChannel() || c.IsVirtualChannel() {
+		if err := c.machine.SetRegistered(ctx); err != nil {
+			return errors.WithMessage(err, "setting machine to phased 'registered'")
+		}
+	}
+
 	if err := c.machine.SetWithdrawing(ctx); err != nil {
 		return errors.WithMessage(err, "setting machine to withdrawing phase")
 	}

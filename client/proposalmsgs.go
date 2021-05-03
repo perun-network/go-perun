@@ -129,6 +129,7 @@ type (
 	VirtualChannelProposal struct {
 		SubChannelProposal
 		ParentReceiver channel.ID
+		Proposer       wallet.Address // Proposer's address in the channel.
 		Peers          []wire.Address // Participants' wire addresses.
 	}
 )
@@ -145,6 +146,8 @@ func (c *Client) proposalPeers(p ChannelProposal) (peers []wire.Address) {
 			c.log.Panic("ProposalPeers: invalid parent channel")
 		}
 		peers = ch.Peers()
+	case *VirtualChannelProposal:
+		peers = prop.Peers
 	default:
 		c.log.Panicf("ProposalPeers: unhandled proposal type %T")
 	}
@@ -471,6 +474,7 @@ type (
 	// virtual channel proposals.
 	VirtualChannelProposalAcc struct {
 		BaseChannelProposalAcc
+		Responder wallet.Address // Responder's participant address.
 	}
 )
 
@@ -589,6 +593,7 @@ func NewVirtualChannelProposal(
 	prop = &VirtualChannelProposal{
 		SubChannelProposal: *sub,
 		ParentReceiver:     parentReceiver,
+		Proposer:           participant,
 		Peers:              peers,
 	}
 	return
@@ -599,7 +604,7 @@ func (p VirtualChannelProposal) ProposalID() (propID ProposalID) {
 	hasher := newHasher()
 	if err := perunio.Encode(hasher,
 		p.SubChannelProposal,
-		p.Peers); err != nil {
+		wire.Addresses(p.Peers)); err != nil {
 		log.Panicf("proposal ID nonce encoding: %v", err)
 	}
 
@@ -609,12 +614,12 @@ func (p VirtualChannelProposal) ProposalID() (propID ProposalID) {
 
 // Encode writes the proposal to an io.Writer.
 func (p VirtualChannelProposal) Encode(w io.Writer) error {
-	return perunio.Encode(w, p.SubChannelProposal, p.Peers)
+	return perunio.Encode(w, p.SubChannelProposal, wire.AddressesWithLen(p.Peers))
 }
 
 // Decode reads the proposal from an io.Reader.
 func (p *VirtualChannelProposal) Decode(r io.Reader) error {
-	return perunio.Decode(r, &p.SubChannelProposal, &p.Peers)
+	return perunio.Decode(r, &p.SubChannelProposal, (*wire.AddressesWithLen)(&p.Peers))
 }
 
 // Type returns wire.SubChannelProposal.
@@ -625,16 +630,18 @@ func (VirtualChannelProposal) Type() wire.Type {
 // Accept constructs an accept message that belongs to a proposal message. It
 // should be used instead of manually constructing an accept message.
 func (p VirtualChannelProposal) Accept(
-	nonceShare ProposalOpts,
+	responder wallet.Address,
+	opts ...ProposalOpts,
 ) *VirtualChannelProposalAcc {
 	propID := p.ProposalID()
-	if !nonceShare.isNonce() {
-		log.WithField("proposal", propID).
-			Panic("VirtualChannelProposal.Accept: nonceShare has no configured nonce")
+	_opts := union(opts...)
+	if !_opts.isNonce() {
+		_opts = union(_opts, WithRandomNonce())
 	}
 	return &VirtualChannelProposalAcc{
 		BaseChannelProposalAcc: makeBaseChannelProposalAcc(
-			propID, nonceShare.nonce()),
+			propID, _opts.nonce()),
+		Responder: responder,
 	}
 }
 

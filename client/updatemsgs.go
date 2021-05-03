@@ -42,7 +42,12 @@ func init() {
 	wire.RegisterDecoder(wire.VirtualChannelFundingProposal,
 		func(r io.Reader) (wire.Msg, error) {
 			var m virtualChannelFundingProposal
-			return &m, m.Decode(r) //TODO implement Decode() and Type()
+			return &m, m.Decode(r)
+		})
+	wire.RegisterDecoder(wire.VirtualChannelSettlementProposal,
+		func(r io.Reader) (wire.Msg, error) {
+			var m virtualChannelSettlementProposal
+			return &m, m.Decode(r)
 		})
 }
 
@@ -120,12 +125,28 @@ func (m *virtualChannelSettlementProposal) Type() wire.Type {
 	return wire.VirtualChannelSettlementProposal
 }
 
+// func (m virtualChannelSettlementProposal) Encode(w io.Writer) error {
+// 	return perunio.Encode(w,
+// 		m.msgChannelUpdate,
+// 		m.ChannelParams,
+// 		m.FinalState,
+// 		m.FinalStateSignatures,
+// 	)
+// }
+
+// func (m *virtualChannelSettlementProposal) Decode(r io.Reader) (err error) {
+// 	if m.State == nil {
+// 		m.State = new(channel.State)
+// 	}
+// 	if err := perunio.Decode(r, m.State, &m.ActorIdx); err != nil {
+// 		return err
+// 	}
+// 	m.Sig, err = wallet.DecodeSig(r)
+// 	return err
+// }
+
 func (m *virtualChannelFundingProposal) Type() wire.Type {
 	return wire.VirtualChannelFundingProposal
-}
-
-func (m *virtualChannelFundingProposal) Base() *msgChannelUpdate {
-	return &m.msgChannelUpdate
 }
 
 func (m *msgChannelUpdate) Base() *msgChannelUpdate {

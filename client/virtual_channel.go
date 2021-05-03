@@ -12,7 +12,17 @@ import (
 )
 
 func (c *Client) fundVirtualChannel(ctx context.Context, virtual *Channel, prop *VirtualChannelProposal) (err error) {
-	parent, ok := c.channels.Get(prop.ParentReceiver)
+	var parentID channel.ID
+	switch virtual.Idx() {
+	case proposerIdx:
+		parentID = prop.Parent
+	case proposeeIdx:
+		parentID = prop.ParentReceiver
+	default:
+		return errors.New("invalid participant index")
+	}
+
+	parent, ok := c.channels.Get(parentID)
 	if !ok {
 		return errors.New("referenced parent channel not found")
 	}
@@ -62,9 +72,9 @@ func remapMapForVirtualChannel(parent, virtual []wallet.Address) map[int]int {
 		panic("only implemented for two-party channels")
 	}
 
-	if parent[0] == virtual[0] || parent[1] == virtual[1] {
+	if parent[0].Equals(virtual[0]) || parent[1].Equals(virtual[1]) {
 		return map[int]int{0: 0, 1: 1}
-	} else if parent[0] == virtual[1] || parent[1] == virtual[0] {
+	} else if parent[0].Equals(virtual[1]) || parent[1].Equals(virtual[0]) {
 		return map[int]int{0: 1, 1: 0}
 	}
 
@@ -131,20 +141,20 @@ func (c *Client) validateVirtualChannelFundingProposal(
 	// Assert sufficient funds in parent channel.
 	m := remapMapForVirtualChannel(parent.Params().Parts, prop.ChannelParams.Parts)
 	virtual := prop.InitialState.Balances.Remap(m)
-	if err := parent.State().Balances.AssertGreaterOrEqual(virtual); err != nil {
+	if err := parent.state().Balances.AssertGreaterOrEqual(virtual); err != nil {
 		return errors.WithMessage(err, "insufficient funds")
 	}
 
 	// Assert not contained before
 	_, containedBefore := parent.state().SubAlloc(prop.ChannelParams.ID())
-	if !containedBefore {
+	if containedBefore {
 		return errors.New("virtual channel already allocated")
 	}
 
 	// Assert contained after with correct balances
 	expected := channel.SubAlloc{ID: prop.ChannelParams.ID(), Bals: virtual.Sum()}
 	subAlloc, containedAfter := prop.State.SubAlloc(expected.ID)
-	if containedAfter && subAlloc.Equal(&expected) == nil {
+	if !containedAfter || subAlloc.Equal(&expected) != nil {
 		return errors.New("invalid allocation")
 	}
 
@@ -173,7 +183,7 @@ func (c *Client) awaitMatchingVirtualChannelState(
 	ctx context.Context,
 	state *channel.State,
 ) error {
-	done := make(chan struct{})
+	done := make(chan struct{}, 1)
 	c.stateWatcher.Register(state, done)
 	defer c.stateWatcher.Deregister(state.ID)
 	select {
@@ -248,18 +258,22 @@ func (ch *Channel) withdrawVirtualChannel(ctx context.Context, virtual *Channel)
 	defer ch.machMtx.Unlock()
 
 	state := ch.machine.State().Clone()
+	state.Version++
 
 	virtualAlloc, ok := state.SubAlloc(virtual.ID())
 	if !ok {
 		ch.Log().Panicf("sub-allocation %x not found", virtualAlloc.ID)
 	}
 
-	if !virtualAlloc.BalancesEqual(virtual.machine.State().Allocation.Sum()) {
+	if !virtualAlloc.BalancesEqual(virtual.state().Allocation.Sum()) {
 		ch.Log().Panic("sub-allocation does not equal accumulated sub-channel outcome")
 	}
 
+	m := remapMapForVirtualChannel(ch.Params().Parts, virtual.Params().Parts)
+	virtualBalsRemapped := virtual.state().Balances.Remap(m)
+
 	// We assume that the asset types of parent channel and virtual channel are the same.
-	for a, assetBalances := range virtual.machine.State().Balances {
+	for a, assetBalances := range virtualBalsRemapped {
 		for u, userBalance := range assetBalances {
 			parentBalance := state.Allocation.Balances[a][u]
 			parentBalance.Add(parentBalance, userBalance)
@@ -272,7 +286,10 @@ func (ch *Channel) withdrawVirtualChannel(ctx context.Context, virtual *Channel)
 
 	err = ch.updateGeneric(ctx, state, func(mcu *msgChannelUpdate) wire.Msg {
 		return &virtualChannelSettlementProposal{
-			msgChannelUpdate: *mcu,
+			msgChannelUpdate:     *mcu,
+			ChannelParams:        *virtual.Params(),
+			FinalState:           *virtual.state(),
+			FinalStateSignatures: virtual.machine.CurrentTX().Sigs,
 		}
 	})
 
@@ -341,8 +358,8 @@ func (c *Client) validateVirtualChannelSettlementProposal(
 
 	// Assert not contained after
 	_, containedAfter := prop.State.SubAlloc(prop.ChannelParams.ID())
-	if !containedAfter {
-		return errors.New("invalid allocation")
+	if containedAfter {
+		return errors.New("virtual channel must not be de-allocated after update")
 	}
 
 	// Assert correct balances

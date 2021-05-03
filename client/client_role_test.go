@@ -76,18 +76,19 @@ func NewRoles(rng *rand.Rand, names []string, t *testing.T, numStages int) []cte
 
 type Client struct {
 	*client.Client
-	*ctest.RoleSetup
+	ctest.RoleSetup
 }
 
 func NewClients(rng *rand.Rand, names []string, t *testing.T) []*Client {
 	setups := NewSetups(rng, names)
 	clients := make([]*Client, len(setups))
 	for i, setup := range setups {
+		setup.Identity = setup.Wallet.NewRandomAccount(rng)
 		cl, err := client.New(setup.Identity.Address(), setup.Bus, setup.Funder, setup.Adjudicator, setup.Wallet)
 		assert.NoError(t, err)
 		clients[i] = &Client{
 			Client:    cl,
-			RoleSetup: &setup,
+			RoleSetup: setup,
 		}
 	}
 	return clients
