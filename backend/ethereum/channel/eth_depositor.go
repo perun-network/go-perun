@@ -36,6 +36,9 @@ const ETHDepositorGasLimit = 50000
 // Deposit deposits ether into the ETH AssetHolder specified at the requests's
 // asset address.
 func (d *ETHDepositor) Deposit(ctx context.Context, req DepositReq) (types.Transactions, error) {
+	if common.Address(req.Asset) == (common.Address{}) {
+		return nil, errors.New("can not use 0 address for Asset")
+	}
 	// Bind an `AssetHolderETH` instance. Using `AssetHolder` is also possible
 	// since we only use the interface functions here.
 	contract, err := assetholdereth.NewAssetHolderETH(common.Address(req.Asset), req.CB)

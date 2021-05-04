@@ -75,7 +75,7 @@ func validateAssetHolder(ctx context.Context,
 		err = checkIsChainNotReachableError(err)
 		return errors.WithMessage(err, "fetching adjudicator address set in asset holder contract")
 	} else if addrSetInContract != adjudicatorAddr {
-		return errors.Wrap(ErrInvalidContractCode, "incorrect adjudicator code")
+		return errors.Wrap(ErrInvalidContractCode, "incorrect adjudicator address")
 	}
 
 	return errors.WithMessage(ValidateAdjudicator(ctx, backend, adjudicatorAddr),
@@ -88,6 +88,9 @@ func validateContract(ctx context.Context,
 	if err != nil {
 		err = checkIsChainNotReachableError(err)
 		return errors.WithMessage(err, "fetching contract code")
+	}
+	if len(code) == 0 {
+		return errors.Wrap(ErrInvalidContractCode, "no contract code")
 	}
 	if hex.EncodeToString(code) != bytecode {
 		return errors.Wrap(ErrInvalidContractCode, "incorrect contract code")
