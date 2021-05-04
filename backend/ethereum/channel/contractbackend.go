@@ -35,7 +35,14 @@ import (
 const startBlockOffset = 100
 
 // GasLimit is the max amount of gas we want to send per transaction.
-var GasLimit uint64 = 500000000
+var (
+	GasLimit         uint64 = 500000000
+	overrideGasPrice *int64
+)
+
+func SetGasPrice(gasPrice int64) {
+	overrideGasPrice = &gasPrice
+}
 
 // errTxTimedOut is an internal named error that with an empty message.
 // Because calling function is expected to check for this error and
@@ -128,6 +135,9 @@ func (c *ContractBackend) NewTransactor(ctx context.Context, gasLimit uint64,
 
 	auth.GasLimit = gasLimit
 	auth.Context = ctx
+	if overrideGasPrice != nil {
+		auth.GasPrice = big.NewInt(*overrideGasPrice)
+	}
 
 	return auth, nil
 }
