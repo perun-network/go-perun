@@ -35,8 +35,6 @@ import (
 	pcontext "perun.network/go-perun/pkg/context"
 )
 
-const deployGasLimit = 6600000
-
 // DeployPerunToken deploys a new PerunToken contract.
 // Returns txTimedOutError if the context is cancelled or if the context
 // deadline is exceeded when waiting for the transaction to be mined.
@@ -95,7 +93,7 @@ func DeployTrivialApp(ctx context.Context, backend ContractBackend, deployer acc
 // Returns txTimedOutError if the context is cancelled or if the context
 // deadline is exceeded when waiting for the transaction to be mined.
 func deployContract(ctx context.Context, cb ContractBackend, deployer accounts.Account, name string, f func(*bind.TransactOpts, ContractBackend) (common.Address, *types.Transaction, error)) (common.Address, error) {
-	auth, err := cb.NewTransactor(ctx, deployGasLimit, deployer)
+	auth, err := cb.NewTransactor(ctx, GasLimit, deployer)
 	if err != nil {
 		return common.Address{}, errors.WithMessage(err, "creating transactor")
 	}
