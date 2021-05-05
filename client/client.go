@@ -46,6 +46,8 @@ type Client struct {
 	version1Cache version1Cache
 	stateWatcher  *VirtualChannelFundingProposalWatchers
 
+	hub *Hub
+
 	sync.Closer
 }
 
@@ -107,9 +109,32 @@ func New(
 	}, nil
 }
 
+func (c *Client) SetHub(hub *Hub) {
+	c.hub = hub
+	// Start receiving
+	go func() {
+		defer c.log.Debug("Hub receiver finished")
+
+		states, errs := hub.recv()
+		for {
+			select {
+			case state := <-states:
+				c.stateWatcher.Register(state, nil)
+			case err := <-errs:
+				c.log.WithError(err).Error("Hub receiver failed")
+			case <-c.hub.Closed():
+				return
+			}
+		}
+	}()
+}
+
 // Close closes this state channel client.
 // It also closes the peer registry.
 func (c *Client) Close() error {
+	if c.hub != nil {
+		c.hub.Close()
+	}
 	if err := c.Closer.Close(); err != nil {
 		return err
 	}

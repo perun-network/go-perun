@@ -97,6 +97,8 @@ func (c *Client) handleVirtualChannelFundingProposal(
 	ctx, cancel := context.WithTimeout(c.Ctx(), virtualChannelFundingTimeout)
 	defer cancel()
 
+	err = c.hub.send(&prop.InitialState)
+	c.log.WithError(err).Info("Sending init state to hub")
 	err = c.awaitMatchingVirtualChannelState(ctx, &prop.InitialState)
 	if err != nil {
 		c.rejectProposal(responder, err.Error())
@@ -185,6 +187,7 @@ func (c *Client) awaitMatchingVirtualChannelState(
 ) error {
 	done := make(chan struct{}, 1)
 	c.stateWatcher.Register(state, done)
+
 	defer c.stateWatcher.Deregister(state.ID)
 	select {
 	case <-done:
@@ -215,8 +218,12 @@ func (w *VirtualChannelFundingProposalWatchers) Register(
 
 	e, ok := w.entries[channelID]
 	if ok && e.state.Equal(state) == nil {
-		done <- struct{}{}
-		e.done <- struct{}{}
+		if done != nil {
+			close(done)
+		}
+		if e.done != nil {
+			close(e.done)
+		}
 		delete(w.entries, channelID)
 		return
 	}
@@ -230,11 +237,7 @@ func (w *VirtualChannelFundingProposalWatchers) Deregister(
 	w.Lock()
 	defer w.Unlock()
 
-	_, ok := w.entries[channelID]
-	if ok {
-		delete(w.entries, channelID)
-		return
-	}
+	delete(w.entries, channelID)
 }
 
 func (c *Channel) withdrawVirtualChannelIntoParent(ctx context.Context) error {
@@ -309,6 +312,8 @@ func (c *Client) handleVirtualChannelSettlementProposal(
 	ctx, cancel := context.WithTimeout(c.Ctx(), virtualChannelFundingTimeout)
 	defer cancel()
 
+	err = c.hub.send(&prop.FinalState)
+	c.log.WithError(err).Info("Sending final state to hub")
 	err = c.awaitMatchingVirtualChannelState(ctx, &prop.FinalState)
 	if err != nil {
 		c.rejectProposal(responder, err.Error())

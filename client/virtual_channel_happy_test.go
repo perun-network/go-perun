@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
 	"perun.network/go-perun/channel"
 	chtest "perun.network/go-perun/channel/test"
 	"perun.network/go-perun/client"
@@ -43,6 +44,29 @@ func (h *FunctionProposalHandler) HandleUpdate(prev *channel.State, next client.
 	h.updateProposalHandler(prev, next, r)
 }
 
+const port uint16 = 5000
+
+func SetupHubs(t *testing.T, alice, bob, ingrid *Client) {
+	hubA := client.NewHub("127.0.0.1", port)
+	hubB := client.NewHub("127.0.0.1", port)
+	hubI := client.NewHub("127.0.0.1", port)
+
+	// Ingrid Listen
+	go func() {
+		if err := hubI.SetupPassive(2); err != nil {
+			panic(err)
+		}
+	}()
+	time.Sleep(100 * time.Millisecond)
+	// Alice and Bob connect
+	require.NoError(t, hubA.SetupActive())
+	require.NoError(t, hubB.SetupActive())
+
+	alice.SetHub(hubA)
+	bob.SetHub(hubB)
+	ingrid.SetHub(hubI)
+}
+
 func TestVirtualChannelsOptimistic(t *testing.T) {
 	rng := test.Prng(t)
 	ctx, cancel := context.WithTimeout(context.Background(), testDuration)
@@ -56,6 +80,7 @@ func TestVirtualChannelsOptimistic(t *testing.T) {
 		t,
 	)
 	alice, bob, ingrid := clients[0], clients[1], clients[2]
+	SetupHubs(t, alice, bob, ingrid)
 
 	proposalHandlerIngrid := &FunctionProposalHandler{
 		openingProposalHandler: func(cp client.ChannelProposal, pr *client.ProposalResponder) {
