@@ -120,6 +120,7 @@ func (f *Funder) Fund(ctx context.Context, request channel.FundingReq) error {
 	}
 	// Prioritize funding errors over other errors.
 	if len(fundingErrs) != 0 {
+		f.log.Debug(nonFundingErrg.Err())
 		return channel.NewFundingTimeoutError(fundingErrs)
 	}
 	return nonFundingErrg.Err()
