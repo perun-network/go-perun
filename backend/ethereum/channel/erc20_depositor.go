@@ -54,10 +54,10 @@ func (d *ERC20Depositor) Deposit(ctx context.Context, req DepositReq) (types.Tra
 		err = checkIsChainNotReachableError(err)
 		return nil, errors.WithMessagef(err, "increasing allowance for asset: %x", req.Asset)
 	}
-	_, err = req.CB.ConfirmTransaction(ctx, tx1, req.Account)
-	if err != nil {
-		return nil, err
-	}
+	// _, err = req.CB.ConfirmTransaction(ctx, tx1, req.Account)
+	// if err != nil {
+	// 	return nil, err
+	// }
 	// Deposit.
 	opts, err = req.CB.NewTransactor(ctx, GasLimit, req.Account)
 	if err != nil {
