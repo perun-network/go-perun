@@ -18,11 +18,13 @@ import (
 	"context"
 	stderrors "errors"
 	"math/big"
+	"sync"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/pkg/errors"
 
@@ -120,6 +122,9 @@ func (c *ContractBackend) pastOffsetBlockNum(ctx context.Context) (uint64, error
 	return h.Number.Uint64() - startBlockOffset, nil
 }
 
+var nonces map[common.Address]uint64 = make(map[common.Address]uint64)
+var noncesMtx sync.Mutex
+
 // NewTransactor returns bind.TransactOpts with the context, gas limit and
 // account set as specified, using the ContractBackend's Transactor.
 //
@@ -133,8 +138,22 @@ func (c *ContractBackend) NewTransactor(ctx context.Context, gasLimit uint64,
 		return nil, errors.WithMessage(err, "creating transactor")
 	}
 
+	noncesMtx.Lock()
+	defer noncesMtx.Unlock()
+	nonce, ok := nonces[acc.Address]
+	if ok {
+		nonce++
+	} else {
+		nonce, err = c.PendingNonceAt(ctx, acc.Address)
+		if err != nil {
+			return nil, err
+		}
+	}
+	nonces[acc.Address] = nonce
+
 	auth.GasLimit = gasLimit
 	auth.Context = ctx
+	auth.Nonce = big.NewInt(int64(nonce))
 	if overrideGasPrice != nil {
 		auth.GasPrice = big.NewInt(*overrideGasPrice)
 	}
