@@ -614,12 +614,12 @@ func (p VirtualChannelProposal) ProposalID() (propID ProposalID) {
 
 // Encode writes the proposal to an io.Writer.
 func (p VirtualChannelProposal) Encode(w io.Writer) error {
-	return perunio.Encode(w, p.SubChannelProposal, wire.AddressesWithLen(p.Peers))
+	return perunio.Encode(w, p.SubChannelProposal, p.ParentReceiver, p.Proposer, wire.AddressesWithLen(p.Peers))
 }
 
 // Decode reads the proposal from an io.Reader.
 func (p *VirtualChannelProposal) Decode(r io.Reader) error {
-	return perunio.Decode(r, &p.SubChannelProposal, (*wire.AddressesWithLen)(&p.Peers))
+	return perunio.Decode(r, &p.SubChannelProposal, &p.ParentReceiver, wallet.AddressDec{Addr: &p.Proposer}, (*wire.AddressesWithLen)(&p.Peers))
 }
 
 // Type returns wire.SubChannelProposal.
@@ -664,10 +664,10 @@ func (acc *VirtualChannelProposalAcc) Base() *BaseChannelProposalAcc {
 
 // Encode writes the acceptance message to io.Writer.
 func (acc VirtualChannelProposalAcc) Encode(w io.Writer) error {
-	return perunio.Encode(w, acc.BaseChannelProposalAcc)
+	return perunio.Encode(w, acc.BaseChannelProposalAcc, acc.Responder)
 }
 
 // Decode reads an accept message from an io.Reader.
 func (acc *VirtualChannelProposalAcc) Decode(r io.Reader) error {
-	return perunio.Decode(r, &acc.BaseChannelProposalAcc)
+	return perunio.Decode(r, &acc.BaseChannelProposalAcc, wallet.AddressDec{Addr: &acc.Responder})
 }

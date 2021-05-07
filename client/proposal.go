@@ -426,12 +426,14 @@ func (c *Client) completeCPP(
 	partIdx channel.Index,
 ) (*Channel, error) {
 	propBase := prop.Base()
-	params := channel.NewParamsUnsafe(
+	params, err := channel.NewParams(
 		propBase.ChallengeDuration,
 		c.mpcppParts(prop, acc),
 		propBase.App,
 		calcNonce(nonceShares(propBase.NonceShare, acc.Base().NonceShare)))
-
+	if err != nil {
+		return nil, errors.WithMessage(err, "calculating channel id")
+	}
 	if c.channels.Has(params.ID()) {
 		return nil, errors.New("channel already exists")
 	}
