@@ -108,15 +108,15 @@ type (
 	// virtualChannelFundingProposal is a channel proposal for virtual channels.
 	virtualChannelFundingProposal struct {
 		msgChannelUpdate
-		ChannelParams          channel.Params
-		InitialState           channel.State
+		ChannelParams          *channel.Params
+		InitialState           *channel.State
 		InitialStateSignatures []wallet.Sig
 	}
 
 	virtualChannelSettlementProposal struct {
 		msgChannelUpdate
-		ChannelParams        channel.Params
-		FinalState           channel.State
+		ChannelParams        *channel.Params
+		FinalState           *channel.State
 		FinalStateSignatures []wallet.Sig
 	}
 )
@@ -125,25 +125,77 @@ func (m *virtualChannelSettlementProposal) Type() wire.Type {
 	return wire.VirtualChannelSettlementProposal
 }
 
-// func (m virtualChannelSettlementProposal) Encode(w io.Writer) error {
-// 	return perunio.Encode(w,
-// 		m.msgChannelUpdate,
-// 		m.ChannelParams,
-// 		m.FinalState,
-// 		m.FinalStateSignatures,
-// 	)
-// }
+func (m virtualChannelFundingProposal) Encode(w io.Writer) error {
+	err := perunio.Encode(w,
+		m.msgChannelUpdate,
+		m.ChannelParams,
+		m.InitialState,
+		channel.Index(len(m.InitialStateSignatures)),
+	)
+	if err != nil {
+		return nil
+	}
+	for _, sig := range m.InitialStateSignatures {
+		if err := perunio.Encode(w, sig); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
-// func (m *virtualChannelSettlementProposal) Decode(r io.Reader) (err error) {
-// 	if m.State == nil {
-// 		m.State = new(channel.State)
-// 	}
-// 	if err := perunio.Decode(r, m.State, &m.ActorIdx); err != nil {
-// 		return err
-// 	}
-// 	m.Sig, err = wallet.DecodeSig(r)
-// 	return err
-// }
+func (m *virtualChannelFundingProposal) Decode(r io.Reader) (err error) {
+	m.InitialState = new(channel.State)
+	m.ChannelParams = new(channel.Params)
+	var sigLen channel.Index
+
+	if err := perunio.Decode(r, &m.msgChannelUpdate, m.ChannelParams, m.InitialState, &sigLen); err != nil {
+		return err
+	}
+	m.InitialStateSignatures = make([]wallet.Sig, sigLen)
+	for i := 0; i < int(sigLen); i++ {
+		m.InitialStateSignatures[i], err = wallet.DecodeSig(r)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (m virtualChannelSettlementProposal) Encode(w io.Writer) error {
+	err := perunio.Encode(w,
+		m.msgChannelUpdate,
+		m.ChannelParams,
+		m.FinalState,
+		channel.Index(len(m.FinalStateSignatures)),
+	)
+	if err != nil {
+		return nil
+	}
+	for _, sig := range m.FinalStateSignatures {
+		if err := perunio.Encode(w, sig); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (m *virtualChannelSettlementProposal) Decode(r io.Reader) (err error) {
+	m.FinalState = new(channel.State)
+	m.ChannelParams = new(channel.Params)
+	var sigLen channel.Index
+
+	if err := perunio.Decode(r, &m.msgChannelUpdate, m.ChannelParams, m.FinalState, &sigLen); err != nil {
+		return err
+	}
+	m.FinalStateSignatures = make([]wallet.Sig, sigLen)
+	for i := 0; i < int(sigLen); i++ {
+		m.FinalStateSignatures[i], err = wallet.DecodeSig(r)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 func (m *virtualChannelFundingProposal) Type() wire.Type {
 	return wire.VirtualChannelFundingProposal

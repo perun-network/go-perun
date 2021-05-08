@@ -31,7 +31,7 @@ import (
 // Do not copy a Hub instanfc.
 type Hub struct {
 	pkgsync.Closer
-	conns []net.Conn
+	conn net.Conn
 
 	host, network string
 }
@@ -45,8 +45,8 @@ func NewHub(ip string, port uint16) *Hub {
 		network: "tcp",
 	}
 	hub.Closer.OnClose(func() {
-		for _, conn := range hub.conns {
-			conn.Close()
+		if hub.conn != nil {
+			hub.conn.Close()
 		}
 	})
 	return hub
@@ -68,7 +68,7 @@ func (h *Hub) SetupPassive(numPartners int) error {
 			return errors.WithMessage(err, "accepting connection")
 		}
 		log.Debugf("Accepted conn: %s, %d/%d", conn.RemoteAddr().String(), i+1, numPartners)
-		h.conns = append(h.conns, conn)
+		h.conn = conn
 	}
 	return nil
 }
@@ -83,7 +83,7 @@ func (h *Hub) SetupActive() error {
 		return errors.WithMessage(err, "dialing")
 	}
 	log.Debug("Connected to: ", h.host)
-	h.conns = []net.Conn{conn}
+	h.conn = conn
 	return nil
 }
 
@@ -91,26 +91,22 @@ func (h *Hub) SetupActive() error {
 func (h *Hub) recv() (<-chan *channel.State, <-chan error) {
 	states := make(chan *channel.State, 10)
 	errs := make(chan error, 10)
-	for _, conn := range h.conns {
-		conn := conn
-		go func() {
+	go func() {
+		for !h.IsClosed() {
 			state := new(channel.State)
-			if err := io.Decode(conn, state); err != nil {
+			if err := io.Decode(h.conn, state); err != nil {
 				errs <- errors.WithMessage(err, "decoding or reading state")
 				return
 			}
 			states <- state
-		}()
-	}
+		}
+	}()
 	return states, errs
 }
 
 func (h *Hub) send(state *channel.State) error {
-	for _, conn := range h.conns {
-		err := io.Encode(conn, state)
-		return errors.WithMessage(err, "encoding or sending state")
-	}
-	return nil
+	err := io.Encode(h.conn, *state)
+	return errors.WithMessage(err, "encoding or sending state")
 }
 
 func formatHost(ip string, port uint16) string {

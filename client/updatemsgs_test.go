@@ -67,6 +67,25 @@ func TestChannelUpdateRejSerialization(t *testing.T) {
 	}
 }
 
+func TestVirtualChannelFundingProposalSerialization(t *testing.T) {
+	rng := pkgtest.Prng(t)
+	for i := 0; i < 1; i++ {
+		m := &virtualChannelFundingProposal{
+			msgChannelUpdate: msgChannelUpdate{
+				ChannelUpdate: ChannelUpdate{
+					State:    test.NewRandomState(rng),
+					ActorIdx: 1,
+				},
+				Sig: make([]byte, 64),
+			},
+			InitialStateSignatures: nil,
+			InitialState:           test.NewRandomState(rng),
+			ChannelParams:          test.NewRandomParams(rng),
+		}
+		wire.TestMsg(t, m)
+	}
+}
+
 // newRandomSig generates a random account and then returns the signature on
 // some random data.
 func newRandomSig(rng *rand.Rand) wallet.Sig {

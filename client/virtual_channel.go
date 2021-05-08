@@ -59,8 +59,8 @@ func (ch *Channel) proposeVirtualChannelFunding(ctx context.Context, virtual *Ch
 	err = ch.updateGeneric(ctx, state, func(mcu *msgChannelUpdate) wire.Msg {
 		return &virtualChannelFundingProposal{
 			msgChannelUpdate:       *mcu,
-			ChannelParams:          *virtual.Params(),
-			InitialState:           *virtual.State(),
+			ChannelParams:          virtual.Params(),
+			InitialState:           virtual.State(),
 			InitialStateSignatures: virtual.machine.CurrentTX().Sigs,
 		}
 	})
@@ -97,9 +97,9 @@ func (c *Client) handleVirtualChannelFundingProposal(
 	ctx, cancel := context.WithTimeout(c.Ctx(), virtualChannelFundingTimeout)
 	defer cancel()
 
-	err = c.hub.send(&prop.InitialState)
+	err = c.hub.send(prop.InitialState)
 	c.log.WithError(err).Info("Sending init state to hub")
-	err = c.awaitMatchingVirtualChannelState(ctx, &prop.InitialState)
+	err = c.awaitMatchingVirtualChannelState(ctx, prop.InitialState)
 	if err != nil {
 		c.rejectProposal(responder, err.Error())
 	}
@@ -122,8 +122,8 @@ func (c *Client) validateVirtualChannelFundingProposal(
 	for i, sig := range prop.InitialStateSignatures {
 		ok, err := channel.Verify(
 			prop.ChannelParams.Parts[i],
-			&prop.ChannelParams,
-			&prop.InitialState,
+			prop.ChannelParams,
+			prop.InitialState,
 			sig,
 		)
 		if err != nil {
@@ -290,8 +290,8 @@ func (ch *Channel) withdrawVirtualChannel(ctx context.Context, virtual *Channel)
 	err = ch.updateGeneric(ctx, state, func(mcu *msgChannelUpdate) wire.Msg {
 		return &virtualChannelSettlementProposal{
 			msgChannelUpdate:     *mcu,
-			ChannelParams:        *virtual.Params(),
-			FinalState:           *virtual.state(),
+			ChannelParams:        virtual.Params(),
+			FinalState:           virtual.state(),
 			FinalStateSignatures: virtual.machine.CurrentTX().Sigs,
 		}
 	})
@@ -307,16 +307,18 @@ func (c *Client) handleVirtualChannelSettlementProposal(
 	err := c.validateVirtualChannelSettlementProposal(parent, prop)
 	if err != nil {
 		c.rejectProposal(responder, err.Error())
+		return
 	}
 
 	ctx, cancel := context.WithTimeout(c.Ctx(), virtualChannelFundingTimeout)
 	defer cancel()
 
-	err = c.hub.send(&prop.FinalState)
+	err = c.hub.send(prop.FinalState)
 	c.log.WithError(err).Info("Sending final state to hub")
-	err = c.awaitMatchingVirtualChannelState(ctx, &prop.FinalState)
+	err = c.awaitMatchingVirtualChannelState(ctx, prop.FinalState)
 	if err != nil {
 		c.rejectProposal(responder, err.Error())
+		return
 	}
 
 	c.acceptProposal(responder)
@@ -335,8 +337,8 @@ func (c *Client) validateVirtualChannelSettlementProposal(
 	for i, sig := range prop.FinalStateSignatures {
 		ok, err := channel.Verify(
 			prop.ChannelParams.Parts[i],
-			&prop.ChannelParams,
-			&prop.FinalState,
+			prop.ChannelParams,
+			prop.FinalState,
 			sig,
 		)
 		if err != nil {
