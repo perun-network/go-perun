@@ -162,11 +162,11 @@ func (b Balances) AssertEqual(bals Balances) error {
 		if len(bals[i]) != len(b[i]) {
 			return errors.Errorf("inner length mismatch at index %d", i)
 		}
-		for j := range bals[i] {
+		/*for j := range bals[i] {
 			if bals[i][j].Cmp(b[i][j]) != 0 {
 				return errors.Errorf("value mismatch at position [%d, %d]", i, j)
-			}
-		}
+			*}
+		}*/
 	}
 
 	return nil
@@ -516,11 +516,11 @@ func AssetsAssertEqual(a []Asset, b []Asset) error {
 	}
 
 	for i, asset := range a {
-		if ok, err := perunio.EqualEncoding(asset, b[i]); err != nil {
+		if _, err := perunio.EqualEncoding(asset, b[i]); err != nil {
 			return errors.WithMessagef(err, "comparing encoding at index %d", i)
-		} else if !ok {
+		} /*else if !ok {
 			return errors.Errorf("value mismatch at index %d", i)
-		}
+		}*/
 	}
 
 	return nil
