@@ -20,12 +20,14 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 
 	"perun.network/go-perun/backend/ethereum/bindings/peruntoken"
 	"perun.network/go-perun/backend/ethereum/channel/test"
 	"perun.network/go-perun/backend/ethereum/subscription"
 	"perun.network/go-perun/log"
+	plogrus "perun.network/go-perun/log/logrus"
 	pctx "perun.network/go-perun/pkg/context"
 	pkgtest "perun.network/go-perun/pkg/test"
 )
@@ -37,45 +39,47 @@ var event = func() *subscription.Event {
 	}
 }
 
-// TestResistantEventSub_FinalityDepth tests that a TX is confirmed exactly
-// after `finalityDepth` blocks.
-func TestResistantEventSub_FinalityDepth(t *testing.T) {
-	return
+func init() {
+	plogrus.Set(logrus.TraceLevel, &logrus.TextFormatter{ForceColors: true})
+}
+
+// TestResistantEventSub_Confirmations tests that a TX is confirmed exactly
+// after being included in `confirmations` many blocks.
+func TestResistantEventSub_Confirmations(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	rng := pkgtest.Prng(t)
 	require := require.New(t)
 	s := test.NewTokenSetup(ctx, t, rng)
-	// Create a generic event sub.
-	rawSub, err := subscription.NewEventSub(ctx, s.CB, s.Contract, event, 10)
-	require.NoError(err)
-	defer rawSub.Close()
 
 	for i := 0; i < 10; i++ {
-		finality := rng.Int31n(10) + 2
-		sub, err := subscription.NewResistantEventSub(ctx, rawSub, s.CB.ContractInterface, uint64(finality))
+		// Create a generic event sub.
+		rawSub, err := subscription.NewEventSub(ctx, s.CB, s.Contract, event, 0)
 		require.NoError(err)
-		log.Debugf("Finality depth: %d", finality)
-		// Send and Confirm the TX
+
+		confirmations := rng.Int31n(10) + 1
+		sub, err := subscription.NewResistantEventSub(ctx, rawSub, s.CB.ContractInterface, uint64(confirmations))
+		require.NoError(err)
+		log.Debugf("Needed confirmations: %d", confirmations)
+		// Send and Confirm the TX. The simulated backend already mined a block here,
+		// so the TX has 1 confirmation now.
 		s.ConfirmTx(s.IncAllowance(ctx), true)
-		// Wait `finality-1` blocks
-		for j := int32(0); j < finality-1; j++ {
-			NEvents(require, 0, sub)
+		// Wait `confirmations-1` blocks.
+		for j := int32(0); j < confirmations-1; j++ {
+			NoEvent(require, sub)
 			log.Debug("Commit")
 			s.SB.Commit()
 		}
-		log.Debug("Commit")
-		s.SB.Commit()
 		log.Debug("Waiting for confirm")
-		NEvents(require, 1, sub)
+		OneEvent(require, sub)
 		sub.Close()
+		s.SB.Commit() // Make sure the next EventSub does not get some old block.
 	}
 }
 
 // TestResistantEventSub_FinalityDepth tests that a TX is confirmed exactly
 // after `finalityDepth` blocks even when reorgs occur.
 func TestResistantEventSub_Reorg(t *testing.T) {
-	return
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	rng := pkgtest.Prng(t)
@@ -83,37 +87,40 @@ func TestResistantEventSub_Reorg(t *testing.T) {
 	s := test.NewTokenSetup(ctx, t, rng)
 	// Create a raw event sub.
 
+	for i := 0; i < 100; i++ {
+		s.SB.Commit()
+	}
 	for i := 0; i < 10; i++ {
 		rawSub, err := subscription.NewEventSub(ctx, s.CB, s.Contract, event, 0)
 		require.NoError(err)
 
-		finality := 100
+		finality := rng.Int31n(100) + 1
 		sub, err := subscription.NewResistantEventSub(ctx, rawSub, s.CB.ContractInterface, uint64(finality))
 		require.NoError(err)
 		// Send and Confirm the TX
 		s.ConfirmTx(s.IncAllowance(ctx), true)
 		// Reorg until the block hight hits `finality` blocks.
-		for h := int64(0); h < int64(finality); {
+		for h := int64(0); h < int64(finality-1); {
 			d := rng.Int63n(10) + 1
+			l := rng.Int63n(10) + 1
 			NoEvent(require, sub)
-			log.Debugf("[h=%d] Reorg with depth: %d", h, d)
-			s.SB.Reorg(ctx, 1, d+1, func(txs []types.Transactions) []types.Transactions {
+			log.Debugf("[h=%d] Reorg with depth: %d, length: %d", h, d, l)
+			s.SB.Reorg(ctx, d, d+l, func(txs []types.Transactions) []types.Transactions {
 				return txs
 			})
-			h += d
+			h += l
 		}
 		log.Debug("done")
 		// Verify that the event arrived.
 		OneEvent(require, sub)
-		rawSub.Close()
 		sub.Close()
+		s.SB.Commit()
 	}
 }
 
 func TestResistantEventSub_New(t *testing.T) {
-	return //TODO
-	require.PanicsWithValue(t, "finalityDepth needs to be at least 2", func() {
-		subscription.NewResistantEventSub(context.Background(), nil, nil, 1)
+	require.PanicsWithValue(t, "confirmations needs to be at least 1", func() {
+		subscription.NewResistantEventSub(context.Background(), nil, nil, 0)
 	})
 }
 
@@ -130,7 +137,7 @@ func NEvents(require *require.Assertions, n int, sub *subscription.ResistantEven
 	defer cancel()
 	sink := make(chan *subscription.Event, n+1)
 
-	err := sub.ReadAll(ctx, sink)
+	err := sub.Read(ctx, sink)
 	require.True(pctx.IsContextError(err))
 
 	for i := 0; i < n; i++ {

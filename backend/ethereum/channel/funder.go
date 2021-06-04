@@ -17,6 +17,7 @@ package channel
 import (
 	"context"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -220,15 +221,22 @@ func (f *Funder) checkFunded(ctx context.Context, amount *big.Int, asset assetHo
 	}
 	defer sub.Close()
 	// Read from the sub.
+	readCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
 	go func() {
-		defer close(deposited)
-		subErr <- sub.ReadPast(ctx, deposited)
+		subErr <- sub.Read(readCtx, deposited)
 	}()
 
 	left := new(big.Int).Set(amount)
-	for _event := range deposited {
-		event := _event.Data.(*assetholder.AssetHolderDeposited)
-		left.Sub(left, event.Amount)
+loop:
+	for {
+		select {
+		case _event := <-deposited:
+			event := _event.Data.(*assetholder.AssetHolderDeposited)
+			left.Sub(left, event.Amount)
+		case <-readCtx.Done():
+			break loop
+		}
 	}
 	return left.Sign() != 1, errors.WithMessagef(<-subErr, "filtering old Funding events for asset %d", asset.assetIndex)
 }
@@ -264,7 +272,7 @@ func (f *Funder) waitForFundingConfirmation(ctx context.Context, request channel
 	defer sub.Close()
 	// Read from the sub.
 	go func() {
-		subErr <- sub.ReadAll(ctx, deposited)
+		subErr <- sub.Read(ctx, deposited)
 	}()
 
 	// The allocation that all participants agreed on.
