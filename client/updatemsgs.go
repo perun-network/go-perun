@@ -191,13 +191,21 @@ Virtual channel
 */
 
 type (
-	// virtualChannelFundingProposal is a channel proposal for virtual channels.
+	// virtualChannelFundingProposal is a channel update that proposes the funding of a virtual channel.
 	virtualChannelFundingProposal struct {
 		msgChannelUpdate
 		ChannelParams          channel.Params
 		InitialState           channel.State
 		InitialStateSignatures []wallet.Sig
 		IndexMap               []channel.Index
+	}
+
+	// virtualChannelSettlementProposal is a channel update that proposes the settlement of a virtual channel.
+	virtualChannelSettlementProposal struct {
+		msgChannelUpdate
+		ChannelParams        channel.Params
+		FinalState           channel.State
+		FinalStateSignatures []wallet.Sig
 	}
 )
 
@@ -218,6 +226,27 @@ func (m *virtualChannelFundingProposal) Decode(r io.Reader) (err error) {
 		&m.InitialState,
 		&m.InitialStateSignatures,
 		&m.IndexMap,
+	); err != nil {
+		return err
+	}
+	return err
+}
+
+func (m virtualChannelSettlementProposal) Encode(w io.Writer) error {
+	return perunio.Encode(w,
+		m.msgChannelUpdate,
+		m.ChannelParams,
+		m.FinalState,
+		m.FinalStateSignatures,
+	)
+}
+
+func (m *virtualChannelSettlementProposal) Decode(r io.Reader) (err error) {
+	if err := perunio.Decode(r,
+		&m.msgChannelUpdate,
+		&m.ChannelParams,
+		&m.FinalState,
+		&m.FinalStateSignatures,
 	); err != nil {
 		return err
 	}

@@ -25,6 +25,13 @@ import (
 	"perun.network/go-perun/wire"
 )
 
+// IsVirtualChannel returns whether the channel is a virtual channel.
+// A virtual channel is a channel that has a parent channel with different
+// participants.
+func (c *Channel) IsVirtualChannel() bool {
+	return c.Parent() != nil && !c.equalParticipants(c.Parent())
+}
+
 func (c *Client) fundVirtualChannel(ctx context.Context, virtual *Channel, prop *VirtualChannelProposal) (err error) {
 	parentID := prop.Parents[virtual.Idx()]
 	parent, ok := c.channels.Get(parentID)

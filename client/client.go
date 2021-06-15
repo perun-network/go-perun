@@ -44,6 +44,7 @@ type Client struct {
 	log               log.Logger // structured logger for this client
 	version1Cache     version1Cache
 	fundingWatcher    *stateWatcher
+	settlementWatcher *stateWatcher
 
 	sync.Closer
 }
@@ -105,6 +106,10 @@ func New(
 	c.fundingWatcher = &stateWatcher{
 		entries:   make(map[uint]watcherEntry),
 		condition: c.matchFundingProposal,
+	}
+	c.settlementWatcher = &stateWatcher{
+		entries:   make(map[uint]watcherEntry),
+		condition: c.matchSettlementProposal,
 	}
 
 	return
@@ -176,6 +181,8 @@ func (c *Client) Handle(ph ProposalHandler, uh UpdateHandler) {
 		case *msgChannelUpdate:
 			go c.handleChannelUpdate(uh, env.Sender, msg)
 		case *virtualChannelFundingProposal:
+			go c.handleChannelUpdate(uh, env.Sender, msg)
+		case *virtualChannelSettlementProposal:
 			go c.handleChannelUpdate(uh, env.Sender, msg)
 		case *msgChannelSync:
 			go c.handleSyncMsg(env.Sender, msg)
