@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"perun.network/go-perun/channel"
 )
 
@@ -57,7 +58,7 @@ func (r *Carol) exec(_cfg ExecConfig, ch *paymentChannel, propHandler *acceptNex
 	// start watcher
 	go func() {
 		r.log.Info("Starting channel watcher.")
-		assert.NoError(ch.Watch(r))
+		require.NoError(r.t, ch.Watch(r))
 		r.log.Debug("Channel watcher returned.")
 	}()
 

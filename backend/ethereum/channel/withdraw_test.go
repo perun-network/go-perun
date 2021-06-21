@@ -250,8 +250,12 @@ func TestWithdrawNonFinal(t *testing.T) {
 		Idx:    0,
 		Tx:     testSignState(t, s.Accs, params, state),
 	}
+	events := make(chan channel.AdjudicatorEvent)
+	go sub.Read(ctx, events)
+
 	require.NoError(t, adj.Register(ctx, req))
-	reg := sub.Next()
+	reg := <-events
+	assert.NoError(err)
 	t.Log("Registered ", reg)
 	assert.False(reg.Timeout().IsElapsed(ctx),
 		"registering non-final state should have non-elapsed timeout")

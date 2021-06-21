@@ -65,8 +65,6 @@ func TestSubscribeRegistered(t *testing.T) {
 	// Set up subscription
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	registered, err := s.Adjs[0].Subscribe(ctx, params)
-	require.NoError(t, err, "Subscribing to valid params should not error")
 	// we need to properly fund the channel
 	txCtx, txCancel := context.WithTimeout(context.Background(), defaultTxTimeout)
 	defer txCancel()
@@ -86,19 +84,26 @@ func TestSubscribeRegistered(t *testing.T) {
 		Idx:    channel.Index(0),
 		Tx:     tx,
 	}
+	events := make(chan channel.AdjudicatorEvent, 10)
+	go func() {
+		sub.Read(ctx, events)
+	}()
+
 	assert.NoError(t, adj.Register(txCtx, req), "Registering state should succeed")
-	event := sub.Next()
-	assert.Equal(t, event, registered.Next(), "Events should be equal")
-	assert.NoError(t, registered.Close(), "Closing event channel should not error")
-	assert.Nil(t, registered.Next(), "Next on closed channel should produce nil")
-	assert.NoError(t, registered.Err(), "Closing should produce no error")
+	event := <-events
+	assert.NotNil(t, event)
 	// Setup a new subscription
-	registered2, err := adj.Subscribe(ctx, params)
-	assert.NoError(t, err, "registering two subscriptions should not fail")
-	assert.Equal(t, event, registered2.Next(), "Events should be equal")
-	assert.NoError(t, registered2.Close(), "Closing event channel should not error")
-	assert.Nil(t, registered2.Next(), "Next on closed channel should produce nil")
-	assert.NoError(t, registered2.Err(), "Closing should produce no error")
+	sub2, err := adj.Subscribe(ctx, params)
+	require.NoError(t, err, "registering two subscriptions should not fail")
+	events2 := make(chan channel.AdjudicatorEvent, 10)
+	subErr2 := make(chan error, 1)
+	go func() {
+		subErr2 <- sub2.Read(ctx, events2)
+	}()
+
+	assert.Equal(t, event, <-events2, "Events should be equal")
+	sub2.Close()
+	assert.Nil(t, <-subErr2) // closing should not produce an error
 }
 
 func TestValidateAdjudicator(t *testing.T) {

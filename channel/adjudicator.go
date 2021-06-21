@@ -96,17 +96,13 @@ type (
 	// event has been found). If the subscription is closed or an error is
 	// produced, Next should return nil and Err should tell the possible error.
 	AdjudicatorSubscription interface {
-		// Next returns the most recent past or next future event. If the subscription is
+		// Read returns the most recent past or next future event. If the subscription is
 		// closed or any other error occurs, it should return nil.
-		Next() AdjudicatorEvent
-
-		// Err returns the error status of the subscription. After Next returns nil,
-		// Err should be checked for an error.
-		Err() error
+		Read(ctx context.Context, sink chan AdjudicatorEvent) error
 
 		// Close closes the subscription. Any call to Next should immediately return
 		// nil.
-		Close() error
+		Close()
 	}
 
 	// An AdjudicatorEvent is any event that an on-chain adjudicator call might
