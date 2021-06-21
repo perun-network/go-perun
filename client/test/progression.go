@@ -152,7 +152,7 @@ func (r *Paula) exec(_cfg ExecConfig, ch *paymentChannel, _ *acceptNextPropHandl
 	// start watcher
 	go func() {
 		r.log.Info("Starting channel watcher.")
-		assert.NoError(ch.Watch(r))
+		ch.Watch(r)
 		r.log.Debug("Channel watcher returned.")
 	}()
 
