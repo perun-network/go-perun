@@ -72,32 +72,33 @@ type SimRegisteredSub struct {
 
 // Next calls Next on the underlying subscription, converting the TimeTimeout to
 // a SimTimeout.
-func (r *SimRegisteredSub) Next() channel.AdjudicatorEvent {
-	switch ev := r.RegisteredSub.Next().(type) {
-	case nil:
-		return nil
-	case *channel.RegisteredEvent:
-		if ev == nil {
-			return nil
+func (r *SimRegisteredSub) Read(ctx context.Context, sink chan channel.AdjudicatorEvent) error {
+	readCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	events := make(chan channel.AdjudicatorEvent, 10)
+	subErr := make(chan error, 1)
+	go func() {
+		defer close(events)
+		subErr <- r.RegisteredSub.Read(readCtx, events)
+	}()
+
+	for _ev := range events {
+		switch ev := _ev.(type) {
+		case *channel.RegisteredEvent:
+			ev.TimeoutV = block2SimTimeout(r.sb, ev.Timeout().(*ethchannel.BlockTimeout))
+			sink <- ev
+		case *channel.ProgressedEvent:
+			ev.TimeoutV = block2SimTimeout(r.sb, ev.Timeout().(*ethchannel.BlockTimeout))
+			sink <- ev
+		case *channel.ConcludedEvent:
+			ev.TimeoutV = block2SimTimeout(r.sb, ev.Timeout().(*ethchannel.BlockTimeout))
+			sink <- ev
+		default:
+			log.Panicf("unknown AdjudicatorEvent type: %t", ev)
+			return errors.New("unknown AdjudicatorEvent type")
 		}
-		ev.TimeoutV = block2SimTimeout(r.sb, ev.Timeout().(*ethchannel.BlockTimeout))
-		return ev
-	case *channel.ProgressedEvent:
-		if ev == nil {
-			return nil
-		}
-		ev.TimeoutV = block2SimTimeout(r.sb, ev.Timeout().(*ethchannel.BlockTimeout))
-		return ev
-	case *channel.ConcludedEvent:
-		if ev == nil {
-			return nil
-		}
-		ev.TimeoutV = block2SimTimeout(r.sb, ev.Timeout().(*ethchannel.BlockTimeout))
-		return ev
-	default:
-		log.Panicf("unknown AdjudicatorEvent type: %t", ev)
-		return nil // never reached
 	}
+	return errors.WithMessage(<-subErr, "reading events")
 }
 
 func block2SimTimeout(sb *SimulatedBackend, t *ethchannel.BlockTimeout) *SimTimeout {

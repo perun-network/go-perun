@@ -23,6 +23,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"perun.network/go-perun/channel"
 	"perun.network/go-perun/client"
 )
 
@@ -72,22 +73,25 @@ func (r *Mallory) exec(_cfg ExecConfig, ch *paymentChannel) {
 	r.log.Debug("Registering version 0 state.")
 	assert.NoError(r.setup.Adjudicator.Register(regCtx, req0))
 
-	// within the challenge duration, Carol should refute.
-	subCtx, subCancel := context.WithTimeout(context.Background(), r.timeout+challengeDuration)
-	defer subCancel()
-	sub, err := r.setup.Adjudicator.Subscribe(subCtx, ch.Params())
-	assert.NoError(err)
-
 	// 3rd stage - wait until Carol has refuted
 	r.waitStage()
 
-	event := sub.Next() // should be event caused by Carol's refutation.
+	// within the challenge duration, Carol should refute.
+	sub, err := r.setup.Adjudicator.Subscribe(context.Background(), ch.Params())
+	assert.NoError(err)
+	defer sub.Close()
+	events := make(chan channel.AdjudicatorEvent, 10)
+	go func() {
+		sub.Read(context.Background(), events)
+	}()
+
+	// event should be event caused by Carol's refutation.
+	event := <-events
 	assert.NotNil(event)
-	assert.True(event.Timeout().IsElapsed(subCtx),
+	assert.True(event.Timeout().IsElapsed(context.Background()),
 		"Carol's refutation should already have progressed past the timeout.")
 
-	assert.NoError(sub.Close())
-	assert.NoError(sub.Err())
+	sub.Close()
 	r.log.Debugln("<Registered> refuted: ", event)
 	assert.Equal(ch.State().Version, event.Version(), "expected refutation with current version")
 	waitCtx, waitCancel := context.WithTimeout(context.Background(), r.timeout+challengeDuration)

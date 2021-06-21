@@ -48,13 +48,25 @@ func (c *Channel) Watch(h AdjudicatorEventHandler) error {
 	if err != nil {
 		return errors.WithMessage(err, "subscribing to adjudicator state changes")
 	}
-	// nolint:errcheck
 	defer sub.Close()
-	// nolint:errcheck,gosec
-	c.OnCloseAlways(func() { sub.Close() })
+	// Read all events into `events`
+	events := make(chan channel.AdjudicatorEvent, 10)
+	subErr := make(chan error, 1)
+	go func() {
+		subErr <- sub.Read(ctx, events)
+	}()
+	// TODO c.OnCloseAlways(func() { sub.Close() })
 
 	// Wait for state changed event
-	for e := sub.Next(); e != nil; e = sub.Next() {
+	for {
+		var e channel.AdjudicatorEvent
+		select {
+		case e = <-events:
+		case err := <-subErr:
+			return errors.WithMessage(err, "reading events")
+		case <-c.Ctx().Done():
+			return nil
+		}
 		log.Infof("event %v", e)
 
 		// Update machine phase
@@ -81,10 +93,6 @@ func (c *Channel) Watch(h AdjudicatorEventHandler) error {
 		// Notify handler
 		go h.HandleAdjudicatorEvent(e)
 	}
-
-	err = sub.Err()
-	log.Debugf("Subscription closed: %v", err)
-	return errors.WithMessage(err, "subscription closed")
 }
 
 // Register registers the channel on the adjudicator.

@@ -17,7 +17,6 @@ package client_test
 import (
 	"context"
 	"math/rand"
-	"sync"
 	"time"
 
 	"perun.network/go-perun/channel"
@@ -53,7 +52,7 @@ func NewSetups(rng *rand.Rand, names []string) []ctest.RoleSetup {
 			Identity:    acc,
 			Bus:         bus,
 			Funder:      funder,
-			Adjudicator: &logAdjudicator{log.WithField("role", names[i]), sync.RWMutex{}, nil},
+			Adjudicator: &logAdjudicator{log.WithField("role", names[i]), make(chan channel.AdjudicatorEvent, 10)},
 			Wallet:      wtest.NewWallet(),
 			Timeout:     roleOperationTimeout,
 		}
@@ -72,9 +71,8 @@ type (
 	}
 
 	logAdjudicator struct {
-		log         log.Logger
-		mu          sync.RWMutex
-		latestEvent channel.AdjudicatorEvent
+		log   log.Logger
+		event chan channel.AdjudicatorEvent
 	}
 )
 
@@ -122,25 +120,17 @@ func (a *logAdjudicator) Subscribe(_ context.Context, params *channel.Params) (c
 }
 
 func (a *logAdjudicator) setEvent(e channel.AdjudicatorEvent) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	a.latestEvent = e
+	a.event <- e
 }
 
 type simSubscription struct {
 	a *logAdjudicator
 }
 
-func (s *simSubscription) Next() channel.AdjudicatorEvent {
-	s.a.mu.RLock()
-	defer s.a.mu.RUnlock()
-	return s.a.latestEvent
-}
-
-func (s *simSubscription) Close() error {
+func (s *simSubscription) Read(ctx context.Context, events chan channel.AdjudicatorEvent) error {
+	events <- <-s.a.event
 	return nil
 }
 
-func (s *simSubscription) Err() error {
-	return nil
+func (s *simSubscription) Close() {
 }

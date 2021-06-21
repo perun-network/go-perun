@@ -149,7 +149,12 @@ func TestAdjudicator_ConcludeWithSubChannels(t *testing.T) {
 
 	sub, err := adj.Subscribe(ctx, ledgerChannel.params)
 	require.NoError(err)
-	require.NoError(sub.Next().Timeout().Wait(ctx))
+	events := make(chan channel.AdjudicatorEvent)
+	go func() {
+		sub.Read(ctx, events) // nolint: errcheck
+	}()
+	event := <-events
+	require.NoError(event.Timeout().Wait(ctx))
 	sub.Close()
 
 	// 3. withdraw channel with sub-channels
