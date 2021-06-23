@@ -301,7 +301,7 @@ func (c *Client) proposeTwoPartyChannel(
 // checked.
 func (c *Client) validTwoPartyProposal(
 	proposal ChannelProposal,
-	ourIdx int,
+	ourIdx channel.Index,
 	peerAddr wallet.Address,
 ) error {
 	if err := proposal.Valid(); err != nil {
@@ -317,6 +317,10 @@ func (c *Client) validTwoPartyProposal(
 		return errors.Errorf("expected 2 peers, got %d", len(peers))
 	}
 
+	if !(ourIdx == proposerIdx || ourIdx == proposeeIdx) {
+		return errors.Errorf("invalid index: %d", ourIdx)
+	}
+
 	peerIdx := ourIdx ^ 1
 	// In the 2PCPP, the proposer is expected to have index 0
 	if !peers[peerIdx].Equals(peerAddr) {
@@ -328,8 +332,13 @@ func (c *Client) validTwoPartyProposal(
 		return errors.Errorf("we don't have peer index %d", ourIdx)
 	}
 
-	if proposal.Type() == wire.SubChannelProposal {
-		if err := c.validSubChannelProposal(proposal.(*SubChannelProposal)); err != nil {
+	switch prop := proposal.(type) {
+	case *SubChannelProposal:
+		if err := c.validSubChannelProposal(prop); err != nil {
+			return errors.WithMessage(err, "validate subchannel proposal")
+		}
+	case *VirtualChannelProposal:
+		if err := c.validVirtualChannelProposal(prop, ourIdx); err != nil {
 			return errors.WithMessage(err, "validate subchannel proposal")
 		}
 	}
@@ -353,6 +362,38 @@ func (c *Client) validSubChannelProposal(proposal *SubChannelProposal) error {
 		return errors.WithMessage(err, "insufficient funds")
 	}
 
+	return nil
+}
+
+func (c *Client) validVirtualChannelProposal(prop *VirtualChannelProposal, ourIdx channel.Index) error {
+	numParents := len(prop.Parents)
+	numPeers := prop.NumPeers()
+	if numParents != numPeers {
+		return errors.Errorf("expected %d parent channels, got %d", numPeers, numParents)
+	}
+
+	parent, err := c.Channel(prop.Parents[ourIdx])
+	if err != nil {
+		return errors.New("parent channel not found")
+	}
+
+	if err := channel.AssetsAssertEqual(parent.State().Assets, prop.InitBals.Assets); err != nil {
+		return errors.WithMessage(err, "unequal assets")
+	}
+
+	if !prop.InitBals.Balances.Equal(prop.FundingAgreement) {
+		return errors.WithMessage(err, "unequal funding agreement")
+	}
+
+	numIndexMaps := len(prop.IndexMaps)
+	if numIndexMaps != numPeers {
+		return errors.Errorf("expected %d index maps, got %d", numPeers, numIndexMaps)
+	}
+
+	virtualBals := transformBalances(prop.InitBals.Balances, parent.state().NumParts(), prop.IndexMaps[ourIdx])
+	if err := parent.State().Balances.AssertGreaterOrEqual(virtualBals); err != nil {
+		return errors.WithMessage(err, "insufficient funds")
+	}
 	return nil
 }
 
@@ -422,7 +463,7 @@ func (c *Client) completeCPP(
 		propBase.App,
 		calcNonce(nonceShares(propBase.NonceShare, acc.Base().NonceShare)),
 		prop.Type() == wire.LedgerChannelProposal,
-		false,
+		prop.Type() == wire.VirtualChannelProposal,
 	)
 
 	if c.channels.Has(params.ID()) {
@@ -434,14 +475,9 @@ func (c *Client) completeCPP(
 		return nil, errors.WithMessage(err, "unlocking account")
 	}
 
-	var parent *Channel
-	var parentChannelID *channel.ID
-	if prop.Type() == wire.SubChannelProposal {
-		parentChannelID = &prop.(*SubChannelProposal).Parent
-		var ok bool
-		if parent, ok = c.channels.Get(*parentChannelID); !ok {
-			return nil, errors.New("referenced parent channel not found")
-		}
+	parentChannelID, parent, err := c.proposalParent(prop, partIdx)
+	if err != nil {
+		return nil, err
 	}
 
 	peers := c.proposalPeers(prop)
@@ -469,6 +505,24 @@ func (c *Client) completeCPP(
 	return ch, nil
 }
 
+func (c *Client) proposalParent(prop ChannelProposal, partIdx channel.Index) (parentChannelID *channel.ID, parent *Channel, err error) {
+	switch prop := prop.(type) {
+	case *SubChannelProposal:
+		parentChannelID = &prop.Parent
+	case *VirtualChannelProposal:
+		parentChannelID = &prop.Parents[partIdx]
+	}
+
+	if parentChannelID != nil {
+		var ok bool
+		if parent, ok = c.channels.Get(*parentChannelID); !ok {
+			err = errors.New("referenced parent channel not found")
+			return
+		}
+	}
+	return
+}
+
 // mpcppParts returns a proposed channel's participant addresses.
 func (c *Client) mpcppParts(
 	prop ChannelProposal,
@@ -485,6 +539,11 @@ func (c *Client) mpcppParts(
 			c.log.Panic("unknown parent channel ID")
 		}
 		parts = ch.Params().Parts
+	case *VirtualChannelProposal:
+		parts = participants(
+			p.Proposer,
+			acc.(*VirtualChannelProposalAcc).Responder,
+		)
 	default:
 		c.log.Panicf("unhandled %T", p)
 	}
@@ -492,13 +551,16 @@ func (c *Client) mpcppParts(
 }
 
 func (c *Client) fundChannel(ctx context.Context, ch *Channel, prop ChannelProposal) error {
-	switch prop.Type() {
-	case wire.LedgerChannelProposal:
+	switch prop := prop.(type) {
+	case *LedgerChannelProposal:
 		err := c.fundLedgerChannel(ctx, ch, prop.Base().FundingAgreement)
 		return errors.WithMessage(err, "funding ledger channel")
-	case wire.SubChannelProposal:
-		err := c.fundSubchannel(ctx, prop.(*SubChannelProposal), ch)
+	case *SubChannelProposal:
+		err := c.fundSubchannel(ctx, prop, ch)
 		return errors.WithMessage(err, "funding subchannel")
+	case *VirtualChannelProposal:
+		err := c.fundVirtualChannel(ctx, ch, prop)
+		return errors.WithMessage(err, "funding virtual channel")
 	}
 	c.log.Panicf("invalid channel proposal type %T", prop)
 	return nil

@@ -39,6 +39,11 @@ func init() {
 			var m msgChannelUpdateRej
 			return &m, m.Decode(r)
 		})
+	wire.RegisterDecoder(wire.VirtualChannelFundingProposal,
+		func(r io.Reader) (wire.Msg, error) {
+			var m virtualChannelFundingProposal
+			return &m, m.Decode(r)
+		})
 }
 
 type (
@@ -179,4 +184,42 @@ func (c *msgChannelUpdateAcc) Ver() uint64 {
 // Ver returns the version of the state this update rejection refers to.
 func (c *msgChannelUpdateRej) Ver() uint64 {
 	return c.Version
+}
+
+/*
+Virtual channel
+*/
+
+type (
+	// virtualChannelFundingProposal is a channel proposal for virtual channels.
+	virtualChannelFundingProposal struct {
+		msgChannelUpdate
+		ChannelParams          channel.Params
+		InitialState           channel.State
+		InitialStateSignatures []wallet.Sig
+		IndexMap               []channel.Index
+	}
+)
+
+func (m virtualChannelFundingProposal) Encode(w io.Writer) error {
+	return perunio.Encode(w,
+		m.msgChannelUpdate,
+		m.ChannelParams,
+		m.InitialState,
+		m.InitialStateSignatures,
+		m.IndexMap,
+	)
+}
+
+func (m *virtualChannelFundingProposal) Decode(r io.Reader) (err error) {
+	if err := perunio.Decode(r,
+		&m.msgChannelUpdate,
+		&m.ChannelParams,
+		&m.InitialState,
+		&m.InitialStateSignatures,
+		&m.IndexMap,
+	); err != nil {
+		return err
+	}
+	return err
 }

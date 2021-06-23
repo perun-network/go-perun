@@ -41,7 +41,7 @@ func (c *Client) handleChannelUpdate(uh UpdateHandler, p wire.Address, m Channel
 		return
 	}
 	pidx := ch.Idx() ^ 1
-	ch.handleUpdateReq(pidx, m, uh)
+	ch.handleUpdateReq(pidx, m, uh, c)
 }
 
 func (c *Client) cacheVersion1Update(uh UpdateHandler, p wire.Address, m ChannelUpdateProposal) bool {
@@ -278,6 +278,7 @@ func (c *Channel) handleUpdateReq(
 	pidx channel.Index,
 	req ChannelUpdateProposal,
 	uh UpdateHandler,
+	client *Client,
 ) {
 	c.machMtx.Lock() // Lock machine while update is in progress.
 	defer c.machMtx.Unlock()
@@ -289,6 +290,11 @@ func (c *Channel) handleUpdateReq(
 	}
 
 	responder := &UpdateResponder{channel: c, pidx: pidx, req: req}
+
+	if prop, ok := req.(*virtualChannelFundingProposal); ok {
+		client.handleVirtualChannelFundingProposal(c, prop, responder)
+		return
+	}
 
 	if ui, ok := c.subChannelFundings.Filter(req.Base().ChannelUpdate); ok {
 		ui.HandleUpdate(req.Base().ChannelUpdate, responder)
