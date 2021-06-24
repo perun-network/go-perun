@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"perun.network/go-perun/client"
 )
@@ -72,22 +73,22 @@ func (r *Mallory) exec(_cfg ExecConfig, ch *paymentChannel) {
 	r.log.Debug("Registering version 0 state.")
 	assert.NoError(r.setup.Adjudicator.Register(regCtx, req0))
 
+	// 3rd stage - wait until Carol has refuted
+	r.waitStage()
+
 	// within the challenge duration, Carol should refute.
 	subCtx, subCancel := context.WithTimeout(context.Background(), r.timeout+challengeDuration)
 	defer subCancel()
 	sub, err := r.setup.Adjudicator.Subscribe(subCtx, ch.Params())
 	assert.NoError(err)
 
-	// 3rd stage - wait until Carol has refuted
-	r.waitStage()
-
-	event := sub.Next() // should be event caused by Carol's refutation.
+	event, err := sub.Next() // should be event caused by Carol's refutation.
+	require.NoError(r.t, err)
 	assert.NotNil(event)
 	assert.True(event.Timeout().IsElapsed(subCtx),
 		"Carol's refutation should already have progressed past the timeout.")
 
 	assert.NoError(sub.Close())
-	assert.NoError(sub.Err())
 	r.log.Debugln("<Registered> refuted: ", event)
 	assert.Equal(ch.State().Version, event.Version(), "expected refutation with current version")
 	waitCtx, waitCancel := context.WithTimeout(context.Background(), r.timeout+challengeDuration)

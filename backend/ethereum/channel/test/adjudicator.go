@@ -72,31 +72,25 @@ type SimRegisteredSub struct {
 
 // Next calls Next on the underlying subscription, converting the TimeTimeout to
 // a SimTimeout.
-func (r *SimRegisteredSub) Next() channel.AdjudicatorEvent {
-	switch ev := r.RegisteredSub.Next().(type) {
-	case nil:
-		return nil
+func (r *SimRegisteredSub) Next() (channel.AdjudicatorEvent, error) {
+	event, err := r.RegisteredSub.Next()
+	if err != nil {
+		return nil, err
+	}
+
+	switch ev := event.(type) {
 	case *channel.RegisteredEvent:
-		if ev == nil {
-			return nil
-		}
 		ev.TimeoutV = block2SimTimeout(r.sb, ev.Timeout().(*ethchannel.BlockTimeout))
-		return ev
+		return ev, nil
 	case *channel.ProgressedEvent:
-		if ev == nil {
-			return nil
-		}
 		ev.TimeoutV = block2SimTimeout(r.sb, ev.Timeout().(*ethchannel.BlockTimeout))
-		return ev
+		return ev, nil
 	case *channel.ConcludedEvent:
-		if ev == nil {
-			return nil
-		}
 		ev.TimeoutV = block2SimTimeout(r.sb, ev.Timeout().(*ethchannel.BlockTimeout))
-		return ev
+		return ev, nil
 	default:
 		log.Panicf("unknown AdjudicatorEvent type: %t", ev)
-		return nil // never reached
+		return nil, errors.New("unreachable") // never reached
 	}
 }
 

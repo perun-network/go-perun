@@ -131,16 +131,12 @@ type simSubscription struct {
 	a *logAdjudicator
 }
 
-func (s *simSubscription) Next() channel.AdjudicatorEvent {
+func (s *simSubscription) Next() (channel.AdjudicatorEvent, error) {
 	s.a.mu.RLock()
 	defer s.a.mu.RUnlock()
-	return s.a.latestEvent
+	return s.a.latestEvent, nil
 }
 
 func (s *simSubscription) Close() error {
-	return nil
-}
-
-func (s *simSubscription) Err() error {
 	return nil
 }

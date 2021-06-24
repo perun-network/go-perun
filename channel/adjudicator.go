@@ -98,11 +98,7 @@ type (
 	AdjudicatorSubscription interface {
 		// Next returns the most recent past or next future event. If the subscription is
 		// closed or any other error occurs, it should return nil.
-		Next() AdjudicatorEvent
-
-		// Err returns the error status of the subscription. After Next returns nil,
-		// Err should be checked for an error.
-		Err() error
+		Next() (AdjudicatorEvent, error)
 
 		// Close closes the subscription. Any call to Next should immediately return
 		// nil.

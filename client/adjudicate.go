@@ -53,9 +53,13 @@ func (c *Channel) Watch(h AdjudicatorEventHandler) error {
 	// nolint:errcheck,gosec
 	c.OnCloseAlways(func() { sub.Close() })
 
-	// Wait for state changed event
-	for e := sub.Next(); e != nil; e = sub.Next() {
-		log.Infof("event %v", e)
+	for {
+		// Wait for state changed event
+		e, err := sub.Next()
+		if err != nil {
+			log.Debugf("Subscription closed: %v", err)
+			return errors.WithMessage(err, "subscription closed")
+		}
 
 		// Update machine phase
 		if err := c.setMachinePhase(ctx, e); err != nil {
@@ -81,10 +85,6 @@ func (c *Channel) Watch(h AdjudicatorEventHandler) error {
 		// Notify handler
 		go h.HandleAdjudicatorEvent(e)
 	}
-
-	err = sub.Err()
-	log.Debugf("Subscription closed: %v", err)
-	return errors.WithMessage(err, "subscription closed")
 }
 
 // Register registers the channel on the adjudicator.

@@ -87,18 +87,24 @@ func TestSubscribeRegistered(t *testing.T) {
 		Tx:     tx,
 	}
 	assert.NoError(t, adj.Register(txCtx, req), "Registering state should succeed")
-	event := sub.Next()
-	assert.Equal(t, event, registered.Next(), "Events should be equal")
+	event := nextEvent(t, sub)
+	assert.Equal(t, event, nextEvent(t, registered), "Events should be equal")
 	assert.NoError(t, registered.Close(), "Closing event channel should not error")
-	assert.Nil(t, registered.Next(), "Next on closed channel should produce nil")
-	assert.NoError(t, registered.Err(), "Closing should produce no error")
+	_, err = registered.Next()
+	assert.Error(t, err, "Next on closed channel should produce error")
 	// Setup a new subscription
 	registered2, err := adj.Subscribe(ctx, params)
 	assert.NoError(t, err, "registering two subscriptions should not fail")
-	assert.Equal(t, event, registered2.Next(), "Events should be equal")
+	assert.Equal(t, event, nextEvent(t, registered2), "Events should be equal")
 	assert.NoError(t, registered2.Close(), "Closing event channel should not error")
-	assert.Nil(t, registered2.Next(), "Next on closed channel should produce nil")
-	assert.NoError(t, registered2.Err(), "Closing should produce no error")
+	_, err = registered2.Next()
+	assert.Error(t, err, "Next on closed channel should produce error")
+}
+
+func nextEvent(t *testing.T, sub channel.AdjudicatorSubscription) channel.AdjudicatorEvent {
+	event, err := sub.Next()
+	require.NoError(t, err)
+	return event
 }
 
 func TestValidateAdjudicator(t *testing.T) {
