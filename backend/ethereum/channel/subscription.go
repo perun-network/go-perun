@@ -16,9 +16,7 @@ package channel
 
 import (
 	"context"
-	"log"
 	"math/big"
-	"sync"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -30,12 +28,26 @@ import (
 	"perun.network/go-perun/backend/ethereum/subscription"
 	"perun.network/go-perun/backend/ethereum/wallet"
 	"perun.network/go-perun/channel"
+	"perun.network/go-perun/log"
+	pkgsync "perun.network/go-perun/pkg/sync"
 )
+
+// RegisteredSub implements the channel.AdjudicatorSubscription interface.
+type RegisteredSub struct {
+	closer pkgsync.Closer
+
+	adj *Adjudicator
+	cr  ethereum.ChainReader // chain reader to read block time
+
+	sub    *subscription.EventSub        // Event subscription
+	subErr chan error                    // contains errors from updateNext()
+	sink   chan channel.AdjudicatorEvent // will be read by Next()
+}
+
+var _ channel.AdjudicatorSubscription = &RegisteredSub{}
 
 // Subscribe returns a new AdjudicatorSubscription to adjudicator events.
 func (a *Adjudicator) Subscribe(ctx context.Context, params *channel.Params) (channel.AdjudicatorSubscription, error) {
-	subErr := make(chan error, 1)
-	events := make(chan *subscription.Event, 10)
 	eFact := func() *subscription.Event {
 		return &subscription.Event{
 			Name:   bindings.Events.AdjChannelUpdate,
@@ -47,118 +59,112 @@ func (a *Adjudicator) Subscribe(ctx context.Context, params *channel.Params) (ch
 	if err != nil {
 		return nil, errors.WithMessage(err, "creating filter-watch event subscription")
 	}
-	// Find new events
-	go func() {
-		subErr <- sub.Read(ctx, events)
-	}()
 	rsub := &RegisteredSub{
+		adj:    a,
 		cr:     a.ContractInterface,
 		sub:    sub,
-		subErr: subErr,
-		next:   make(chan channel.AdjudicatorEvent, 1),
-		err:    make(chan error, 1),
+		subErr: make(chan error, 1),
+		sink:   make(chan channel.AdjudicatorEvent, 10),
 	}
-	go rsub.updateNext(ctx, events, a)
+	go func() {
+		err := rsub.updateNext()
+		log.WithError(err).Debug("updateNext returned")
+		rsub.subErr <- err
 
+	}()
 	return rsub, nil
-}
-
-// RegisteredSub implements the channel.AdjudicatorSubscription interface.
-type RegisteredSub struct {
-	cr     ethereum.ChainReader   // chain reader to read block time
-	sub    *subscription.EventSub // Event subscription
-	subErr chan error
-	next   chan channel.AdjudicatorEvent // Event sink
-	err    chan error                    // error from subscription
-	closed sync.Once
-}
-
-func (r *RegisteredSub) updateNext(ctx context.Context, events chan *subscription.Event, a *Adjudicator) {
-evloop:
-	for {
-		select {
-		case _next := <-events:
-			err := r.processNext(ctx, a, _next)
-			if err != nil {
-				r.err <- err
-				break evloop
-			}
-		case err := <-r.subErr:
-			if err != nil {
-				r.err <- errors.WithMessage(err, "EventSub closed")
-			} else {
-				// Normal closing should produce no error
-				close(r.err)
-			}
-			break evloop
-		}
-	}
-
-	// subscription got closed, close next channel and return
-	select {
-	case <-r.next:
-	default:
-	}
-	close(r.next)
-}
-
-func (r *RegisteredSub) processNext(ctx context.Context, a *Adjudicator, _next *subscription.Event) (err error) {
-	next, ok := _next.Data.(*adjudicator.AdjudicatorChannelUpdate)
-	if !ok {
-		log.Panicf("unexpected event type: %T", _next.Data)
-	}
-
-	select {
-	// drain next-channel on new event
-	case current := <-r.next:
-		currentTimeout := current.Timeout().(*BlockTimeout)
-		// if newer version or same version and newer timeout, replace
-		if current.Version() < next.Version || current.Version() == next.Version && currentTimeout.Time < next.Timeout {
-			var e channel.AdjudicatorEvent
-			e, err = a.convertEvent(ctx, next, _next.Log.TxHash)
-			if err != nil {
-				return
-			}
-
-			r.next <- e
-		} else { // otherwise, reuse old
-			r.next <- current
-		}
-	default: // next-channel is empty
-		var e channel.AdjudicatorEvent
-		e, err = a.convertEvent(ctx, next, _next.Log.TxHash)
-		if err != nil {
-			return
-		}
-
-		r.next <- e
-	}
-	return
 }
 
 // Next returns the newest past or next blockchain event.
 // It blocks until an event is returned from the blockchain or the subscription
-// is closed. If the subscription is closed, Next immediately returns nil.
+// is closed. If the subscription is closed, Next immediately errors.
 // If there was a past event when the subscription was set up, the first call to
 // Next will return it.
-func (r *RegisteredSub) Next() channel.AdjudicatorEvent {
-	reg := <-r.next
-	if reg == nil {
-		return nil // otherwise we get (*RegisteredEvent)(nil)
+func (r *RegisteredSub) Next() (channel.AdjudicatorEvent, error) {
+	select {
+	case event := <-r.sink:
+		if event == nil {
+			log.Panic("nil event")
+		}
+		return event, nil
+	case <-r.closer.Closed():
+		return nil, errors.New("closed")
 	}
-	return reg
 }
 
-// Close closes this subscription. Any pending calls to Next will return nil.
+func (r *RegisteredSub) updateNext() error {
+	// Return the last past event, if any.
+	events := make(chan *subscription.Event, 10)
+	subErr := make(chan error, 1)
+	// Read all past events.
+	go func() {
+		defer close(events)
+		subErr <- r.sub.ReadPast(r.closer.Ctx(), events)
+	}()
+	// Get the last past event, if any.
+	last := <-events
+	for e := range events {
+		last = e
+	}
+	if err := <-subErr; err != nil {
+		return errors.WithMessage(err, "reading past events")
+	}
+	// Returns the last past event, if any.
+	if last != nil {
+		e, err := r.adj.convertEvent(r.closer.Ctx(), castEvent(last), last.Log.TxHash)
+		if err != nil {
+			return errors.WithMessage(err, "converting event")
+		}
+		select {
+		case r.sink <- e:
+		case <-r.closer.Closed():
+			return nil
+		}
+	}
+
+	// Return all future event, block afterwards.
+	events = make(chan *subscription.Event, 10)
+	subErr = make(chan error, 1)
+	// Read all future events.
+	go func() {
+		subErr <- r.sub.Read(r.closer.Ctx(), events)
+	}()
+	// Block until an event arrives.
+	for {
+		select {
+		case _e := <-events:
+			e, err := r.adj.convertEvent(r.closer.Ctx(), castEvent(_e), _e.Log.TxHash)
+			if err != nil {
+				return errors.WithMessage(err, "converting event")
+			}
+
+			select {
+			case r.sink <- e:
+			case <-r.closer.Closed():
+				return nil
+			}
+		case err := <-subErr:
+			return errors.WithMessage(err, "reading future events")
+		case <-r.closer.Closed():
+			return nil
+		}
+	}
+}
+
+func castEvent(e *subscription.Event) *adjudicator.AdjudicatorChannelUpdate {
+	return e.Data.(*adjudicator.AdjudicatorChannelUpdate)
+}
+
+// Close closes this subscription. Any pending calls to Next will error.
+// Can be called more than once.
 func (r *RegisteredSub) Close() error {
-	r.closed.Do(r.sub.Close)
-	return nil
-}
-
-// Err returns the error of the event subscription.
-// Should only be called after Next returned nil.
-func (r *RegisteredSub) Err() error {
-	return <-r.err
+	if err := r.closer.Close(); err == nil {
+		return <-r.subErr // wait for updateNext() to return
+	} else if pkgsync.IsAlreadyClosedError(err) {
+		return nil
+	} else {
+		return errors.WithMessage(err, "closing Closer")
+	}
 }
 
 func (a *Adjudicator) convertEvent(ctx context.Context, e *adjudicator.AdjudicatorChannelUpdate, txHash common.Hash) (channel.AdjudicatorEvent, error) {
