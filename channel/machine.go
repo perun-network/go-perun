@@ -138,7 +138,7 @@ func newMachine(acc wallet.Account, params Params) (*machine, error) {
 		acc:       acc,
 		idx:       Index(idx),
 		params:    params,
-		Embedding: log.MakeEmbedding(log.WithField("ID", params.id)),
+		Embedding: log.MakeEmbedding(log.WithField("ID", params.ID())),
 	}, nil
 }
 
@@ -272,13 +272,13 @@ func (m *machine) AddSig(idx Index, sig wallet.Sig) error {
 	}
 
 	if m.stagingTX.Sigs[idx] != nil {
-		return errors.Errorf("signature for idx %d already present (ID: %x)", idx, m.params.id)
+		return errors.Errorf("signature for idx %d already present (ID: %x)", idx, m.params.ID())
 	}
 
 	if ok, err := Verify(m.params.Parts[idx], &m.params, m.stagingTX.State, sig); err != nil {
 		return err
 	} else if !ok {
-		return errors.Errorf("invalid signature for idx %d (ID: %x)", idx, m.params.id)
+		return errors.Errorf("invalid signature for idx %d (ID: %x)", idx, m.params.ID())
 	}
 
 	m.stagingTX.Sigs[idx] = sig
@@ -469,11 +469,11 @@ func (m *machine) expect(tr PhaseTransition) error {
 // A StateMachine will additionally check the validity of the app-specific
 // transition whereas an ActionMachine checks each Action as being valid.
 func (m *machine) validTransition(to *State) error {
-	if to.ID != m.params.id {
+	if to.ID != m.params.ID() {
 		return errors.New("new state's ID doesn't match")
 	}
 
-	newError := func(s string) error { return NewStateTransitionError(m.params.id, s) }
+	newError := func(s string) error { return NewStateTransitionError(m.params.ID(), s) }
 
 	if err := AppShouldEqual(m.params.App, to.App); err != nil {
 		return newError(fmt.Sprintf("new state's App doesn't match: %v", err))

@@ -67,13 +67,13 @@ func (m *ActionMachine) AddAction(idx Index, a Action) error {
 	}
 
 	if m.stagingActions[idx] != nil {
-		return errors.Errorf("action for idx %d already set (ID: %x)", idx, m.params.id)
+		return errors.Errorf("action for idx %d already set (ID: %x)", idx, m.params.ID())
 	}
 
 	if err := m.app.ValidAction(&m.params, m.currentTX.State, idx, a); IsActionError(err) {
 		return err
 	} else if err != nil {
-		return errors.WithMessagef(err, "runtime error in application's ValidAction() (ID: %x)", m.params.id)
+		return errors.WithMessagef(err, "runtime error in application's ValidAction() (ID: %x)", m.params.ID())
 	}
 
 	m.stagingActions[idx] = a

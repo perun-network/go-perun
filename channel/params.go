@@ -56,8 +56,6 @@ var _ io.Serializer = (*Params)(nil)
 // treated as constant.
 // It should only be created through NewParams().
 type Params struct {
-	// ChannelID is the channel ID as calculated by the backend
-	id ID
 	// ChallengeDuration in seconds during disputes
 	ChallengeDuration uint64
 	// Parts are the channel participants
@@ -75,7 +73,7 @@ type Params struct {
 
 // ID returns the channelID of this channel.
 func (p *Params) ID() ID {
-	return p.id
+	return CalcID(p)
 }
 
 // NewParams creates Params from the given data and performs sanity checks. The
@@ -137,8 +135,6 @@ func NewParamsUnsafe(challengeDuration uint64, parts []wallet.Address, app App, 
 		LedgerChannel:     ledger,
 		VirtualChannel:    virtual,
 	}
-	// probably an expensive hash operation, do it only once during creation.
-	p.id = CalcID(p)
 	return p
 }
 
@@ -159,7 +155,6 @@ func (p *Params) Clone() *Params {
 	}
 
 	return &Params{
-		id:                p.ID(),
 		ChallengeDuration: p.ChallengeDuration,
 		Parts:             clonedParts,
 		App:               p.App,
