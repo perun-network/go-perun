@@ -43,6 +43,9 @@ type Setup struct {
 
 	// RandomAddress returns a new random address
 	RandomAddress addressCreator
+
+	KeepApp  bool
+	KeepData bool
 }
 
 // GenericBackendTest tests the interface functions of the global channel.Backend with the passed test data.
@@ -96,20 +99,23 @@ func genericVerifyTest(t *testing.T, s *Setup) {
 
 	// Different state and same params
 	ok, err = channel.Verify(addr, s.Params, s.State2, sig)
-	assert.NoError(t, err, "Verify should not return an error")
+	assert.Error(t, err, "Verify should return an error")
 	assert.False(t, ok, "Verify should return false")
 
-	// Different params and same state
-	// -> The backend does not detect this
-
-	// Different params and different state
 	for _, _modParams := range buildModifiedParams(s.Params, s.Params2, s) {
+		// Different params and same state
 		modParams := _modParams
-		for _, _fakeState := range buildModifiedStates(s.State, s.State2, false) {
+		require.NotEqual(t, *s.Params, modParams)
+		ok, _ = channel.Verify(addr, &modParams, s.State, sig)
+		assert.False(t, ok, "Should not verify with wrong params")
+		for _, _fakeState := range buildModifiedStates(s.State, s.State2, false, s.KeepData) {
+			// Different params and different state
 			fakeState := _fakeState
 			ok, err = channel.Verify(addr, &modParams, &fakeState, sig)
 			assert.False(t, ok, "Verify should return false")
-			if err2 := fakeState.Valid(); err2 != nil {
+			if modParams.ID() != fakeState.ID {
+				assert.Error(t, err, "Verify should return an error given mismatching params")
+			} else if err2 := fakeState.Valid(); err2 != nil {
 				assert.Error(t, err, "Verify should return error on an invalid state")
 			} else {
 				assert.NoError(t, err, "Verify should not return an error on a valid state")
@@ -133,6 +139,9 @@ func buildModifiedParams(p1, p2 *channel.Params, s *Setup) (ret []channel.Params
 		// Modify complete Params
 		{
 			modParams := *p2
+			if s.KeepApp {
+				modParams.App = p1.Clone().App
+			}
 			ret = append(ret, modParams)
 		}
 		// Modify ChallengeDuration
@@ -173,12 +182,15 @@ func buildModifiedParams(p1, p2 *channel.Params, s *Setup) (ret []channel.Params
 // every member from `s1`.
 // `modifyApp` indicates whether the app should also be changed or not. In some cases (signature) it is desirable
 // not to modify it.
-func buildModifiedStates(s1, s2 *channel.State, modifyApp bool) (ret []channel.State) {
+func buildModifiedStates(s1, s2 *channel.State, modifyApp bool, keepData bool) (ret []channel.State) {
 	// Modify state
 	{
 		// Modify complete state
 		{
 			modState := s2.Clone()
+			if keepData {
+				modState.Data = s1.Clone().Data
+			}
 			ret = append(ret, *modState)
 		}
 		// Modify ID
@@ -209,27 +221,22 @@ func buildModifiedStates(s1, s2 *channel.State, modifyApp bool) (ret []channel.S
 			}
 			// Modify Assets
 			{
-				// Modify complete Assets
-				{
-					modState := s1.Clone()
-					modState.Allocation.Assets = s2.Allocation.Assets
-					ret = append(ret, *modState)
+				l1, l2 := len(s1.Allocation.Assets), len(s2.Allocation.Assets)
+				modState := s1.Clone()
+				for i := 0; i < l1 && i < l2; i++ {
+					modState.Allocation.Assets[i] = s2.Allocation.Assets[i]
 				}
-				// Modify Assets[0]
-				{
-					modState := s1.Clone()
-					modState.Assets = make([]channel.Asset, len(s1.Assets))
-					copy(modState.Allocation.Assets, s1.Allocation.Assets)
-					modState.Allocation.Assets[0] = s2.Allocation.Assets[0]
-					ret = append(ret, *modState)
-				}
+				ret = append(ret, *modState)
 			}
 			// Modify Balances
 			{
 				// Modify complete Balances
 				{
+					l1, l2 := len(s1.Allocation.Balances), len(s2.Allocation.Balances)
 					modState := s1.Clone()
-					modState.Allocation.Balances = s2.Allocation.Balances
+					for i := 0; i < l1 && i < l2; i++ {
+						modState.Allocation.Balances[i] = s2.Allocation.Balances[i]
+					}
 					ret = append(ret, *modState)
 				}
 				// Modify Balances[0]
@@ -246,14 +253,14 @@ func buildModifiedStates(s1, s2 *channel.State, modifyApp bool) (ret []channel.S
 				}
 			}
 			// Modify Locked
-			{
+			if len(s1.Allocation.Locked) > 0 && len(s2.Allocation.Locked) > 0 {
 				// Modify complete Locked
 				{
 					modState := s1.Clone()
 					modState.Allocation.Locked = s2.Allocation.Locked
 					ret = append(ret, *modState)
 				}
-				// Modify AppID
+				// Modify Locked ID
 				{
 					modState := s1.Clone()
 					modState.Allocation.Locked[0].ID = s2.Allocation.Locked[0].ID
@@ -274,7 +281,7 @@ func buildModifiedStates(s1, s2 *channel.State, modifyApp bool) (ret []channel.S
 			}
 		}
 		// Modify Data
-		{
+		if !keepData {
 			modState := s1.Clone()
 			modState.Data = s2.Data
 			ret = append(ret, *modState)
@@ -295,7 +302,7 @@ func GenericStateEqualTest(t *testing.T, s1, s2 *channel.State) {
 	assert.NoError(t, s1.Equal(s1))
 	assert.NoError(t, s2.Equal(s2))
 
-	for _, differentState := range buildModifiedStates(s1, s2, true) {
+	for _, differentState := range buildModifiedStates(s1, s2, true, true) {
 		assert.Error(t, differentState.Equal(s1))
 	}
 }
