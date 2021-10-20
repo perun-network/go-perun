@@ -277,7 +277,7 @@ func (c *Client) validateVirtualChannelFundingProposal(
 	// Validate allocation.
 
 	// Assert equal assets.
-	if err := channel.AssetsAssertEqual(ch.state().Assets, prop.Initial.State.Assets); err != nil {
+	if err := channel.AssertAssetsEqual(ch.state().Assets, prop.Initial.State.Assets); err != nil {
 		return errors.WithMessage(err, "assets do not match")
 	}
 
