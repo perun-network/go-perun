@@ -205,7 +205,7 @@ func buildModifiedStates(s1, s2 *channel.State, modifyApp bool) (ret []channel.S
 				ret = append(ret, *modState)
 			}
 			// Modify Assets
-			{
+			if !channel.AssetsEqual(s1.Assets, s2.Assets) {
 				// Modify complete Assets
 				{
 					modState := s1.Clone()
