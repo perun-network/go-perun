@@ -527,6 +527,11 @@ func AssertAssetsEqual(a []Asset, b []Asset) error {
 	return nil
 }
 
+// AssetsEqual returns whether the given assets are equal.
+func AssetsEqual(a []Asset, b []Asset) bool {
+	return AssertAssetsEqual(a, b) == nil
+}
+
 var _ perunio.Serializer = new(SubAlloc)
 
 // Valid checks if this suballocation is valid.
