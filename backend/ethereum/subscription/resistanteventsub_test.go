@@ -16,6 +16,7 @@ package subscription_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -77,6 +78,7 @@ func TestResistantEventSub_ReadPast(t *testing.T) {
 	s := test.NewTokenSetup(ctx, t, rng, txFinalityDepth)
 	numTx := 5
 	finality := int(rng.Int31n(maxFinality) + 1)
+	fmt.Printf("finality = %v\n", finality)
 
 	// Send some past tx.
 	for i := 0; i < numTx; i++ {
@@ -108,7 +110,12 @@ func TestResistantEventSub_ReadPast(t *testing.T) {
 		require.NoError(err)
 
 		for i := 0; i < numTx; i++ {
-			require.NotNil(<-sink)
+			select {
+			case e := <-sink:
+				require.NotNil(e)
+			case <-time.After(time.Second):
+				t.Fatalf("Timeout at i = %d\n", i)
+			}
 		}
 
 		select {
