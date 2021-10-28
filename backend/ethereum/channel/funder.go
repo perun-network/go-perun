@@ -236,7 +236,7 @@ func (f *Funder) deposit(ctx context.Context, bal *big.Int, asset Asset, funding
 		return nil, errors.Errorf("could not find account for asset #%d", asset)
 	}
 
-	return depositor.Deposit(ctx, *NewDepositReq(bal, *f.ContractBackend, asset, acc, fundingID))
+	return depositor.Deposit(ctx, *NewDepositReq(bal, f.ContractBackend, asset, acc, fundingID))
 }
 
 // checkFunded returns whether `fundingID` holds at least `amount` funds.

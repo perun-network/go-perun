@@ -42,7 +42,7 @@ type (
 	// for one Funding-ID.
 	DepositReq struct {
 		Balance   channel.Bal      // How much should be deposited.
-		CB        ContractBackend  // Used to bind contracts and send TX.
+		CB        *ContractBackend // Used to bind contracts and send TX.
 		Account   accounts.Account // Depositor's account.
 		Asset     Asset            // Address of the AssetHolder.
 		FundingID [32]byte         // Needed by the AssetHolder.
@@ -50,7 +50,7 @@ type (
 )
 
 // NewDepositReq returns a new `DepositReq`.
-func NewDepositReq(balance channel.Bal, cb ContractBackend, asset Asset, account accounts.Account, fundingID [32]byte) *DepositReq {
+func NewDepositReq(balance channel.Bal, cb *ContractBackend, asset Asset, account accounts.Account, fundingID [32]byte) *DepositReq {
 	return &DepositReq{
 		Balance:   balance,
 		CB:        cb,
