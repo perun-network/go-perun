@@ -45,7 +45,7 @@ func NewSimAdjudicator(backend ethchannel.ContractBackend, contract common.Addre
 		panic("SimAdjudicator can only be created with a SimulatedBackend.")
 	}
 	return &SimAdjudicator{
-		Adjudicator: *ethchannel.NewAdjudicator(backend, contract, receiver, acc),
+		Adjudicator: *ethchannel.NewAdjudicator(&backend, contract, receiver, acc),
 		sb:          sb,
 	}
 }

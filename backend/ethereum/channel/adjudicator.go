@@ -39,7 +39,7 @@ var _ channel.Adjudicator = (*Adjudicator)(nil)
 // The Adjudicator struct implements the channel.Adjudicator interface
 // It provides all functionality to close a channel.
 type Adjudicator struct {
-	ContractBackend
+	*ContractBackend
 	contract *adjudicator.Adjudicator
 	bound    *bind.BoundContract
 	// The address to which we send all funds.
@@ -54,7 +54,7 @@ type Adjudicator struct {
 
 // NewAdjudicator creates a new ethereum adjudicator. The receiver is the
 // on-chain address that receives withdrawals.
-func NewAdjudicator(backend ContractBackend, contract common.Address, receiver common.Address, txSender accounts.Account) *Adjudicator {
+func NewAdjudicator(backend *ContractBackend, contract common.Address, receiver common.Address, txSender accounts.Account) *Adjudicator {
 	contr, err := adjudicator.NewAdjudicator(contract, backend)
 	if err != nil {
 		panic("Could not create a new instance of adjudicator")
