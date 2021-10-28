@@ -189,7 +189,7 @@ func (f *Funder) fundAssets(ctx context.Context, channelID channel.ID, req chann
 
 	for index, asset := range req.State.Assets {
 		// Bind contract.
-		contract := bindAssetHolder(f.ContractBackend, asset, channel.Index(index))
+		contract := bindAssetHolder(&f.ContractBackend, asset, channel.Index(index))
 		// Wait for the funding event.
 		errg.Go(func() error {
 			return f.waitForFundingConfirmation(ctx, req, contract, fundingIDs)

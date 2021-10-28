@@ -56,7 +56,7 @@ func (a *Adjudicator) ensureWithdrawn(ctx context.Context, req channel.Adjudicat
 		index, asset := index, asset // Capture variables locally for usage in closure
 		g.Go(func() error {
 			// Create subscription
-			contract := bindAssetHolder(a.ContractBackend, asset, channel.Index(index))
+			contract := bindAssetHolder(&a.ContractBackend, asset, channel.Index(index))
 			fundingID := FundingIDs(req.Params.ID(), req.Params.Parts[req.Idx])[0]
 			events := make(chan *subscription.Event, 10)
 			subErr := make(chan error, 1)
@@ -112,7 +112,7 @@ func withdrawnEventType(fundingID [32]byte) subscription.EventFactory {
 	}
 }
 
-func bindAssetHolder(cb ContractBackend, asset channel.Asset, assetIndex channel.Index) assetHolder {
+func bindAssetHolder(cb *ContractBackend, asset channel.Asset, assetIndex channel.Index) assetHolder {
 	// Decode and set the asset address.
 	assetAddr := common.Address(*asset.(*Asset))
 	ctr, err := assetholder.NewAssetHolder(assetAddr, cb)
