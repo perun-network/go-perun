@@ -79,7 +79,7 @@ func newFunderWithDummy_ETH_ERC20_Assets(rng *rand.Rand) (
 		keystore.NewTransactor(*ksWallet, types.NewEIP155Signer(big.NewInt(1337))),
 		TxFinalityDepth,
 	)
-	funder := ethchannel.NewFunder(cb)
+	funder := ethchannel.NewFunder(cb, fundingTimeout)
 	assets := make([]ethchannel.Asset, n)
 	depositors := make([]ethchannel.Depositor, n)
 	accs := make([]accounts.Account, n)
@@ -395,15 +395,15 @@ func newNFunders(
 	)
 
 	// Deploy ETHAssetholder
-	assetAddr1, err := ethchannel.DeployETHAssetholder(ctx, cb, deployAccount.Address, *deployAccount)
+	assetAddr1, err := ethchannel.DeployETHAssetholder(ctx, *cb, deployAccount.Address, *deployAccount)
 	require.NoError(t, err, "Deployment should succeed")
 	t.Logf("asset holder #1 address is %s", assetAddr1.Hex())
 	asset1 := ethchannel.Asset(assetAddr1)
 	// Deploy PerunToken + ETHAssetholder.
 
-	token, err := ethchannel.DeployPerunToken(ctx, cb, *deployAccount, []common.Address{tokenAcc.Address}, channeltest.MaxBalance)
+	token, err := ethchannel.DeployPerunToken(ctx, *cb, *deployAccount, []common.Address{tokenAcc.Address}, channeltest.MaxBalance)
 	require.NoError(t, err, "Deployment should succeed")
-	assetAddr2, err := ethchannel.DeployERC20Assetholder(ctx, cb, common.Address{}, token, *deployAccount)
+	assetAddr2, err := ethchannel.DeployERC20Assetholder(ctx, *cb, common.Address{}, token, *deployAccount)
 	require.NoError(t, err, "Deployment should succeed")
 	t.Logf("asset holder #2 address is %s", assetAddr2.Hex())
 	asset2 := ethchannel.Asset(assetAddr2)
@@ -415,9 +415,9 @@ func newNFunders(
 		parts[i] = ethwallet.AsWalletAddr(acc.Address)
 
 		simBackend.FundAddress(ctx, ethwallet.AsEthAddr(parts[i]))
-		fundERC20(ctx, cb, *tokenAcc, ethwallet.AsEthAddr(parts[i]), token, asset2)
+		fundERC20(ctx, *cb, *tokenAcc, ethwallet.AsEthAddr(parts[i]), token, asset2)
 
-		funders[i] = ethchannel.NewFunder(cb)
+		funders[i] = ethchannel.NewFunder(cb, fundingTimeout)
 		require.True(t, funders[i].RegisterAsset(asset1, ethchannel.NewETHDepositor(), acc))
 		require.True(t, funders[i].RegisterAsset(asset2, ethchannel.NewERC20Depositor(token), acc))
 	}

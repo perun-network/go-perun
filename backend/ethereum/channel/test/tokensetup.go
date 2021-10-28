@@ -72,7 +72,7 @@ func NewTokenSetup(ctx context.Context, t *testing.T, rng *rand.Rand, txFinality
 	)
 
 	// Setup Perun Token.
-	tokenAddr, err := ethchannel.DeployPerunToken(ctx, cb, *acc1, []common.Address{acc1.Address}, channeltest.MaxBalance)
+	tokenAddr, err := ethchannel.DeployPerunToken(ctx, *cb, *acc1, []common.Address{acc1.Address}, channeltest.MaxBalance)
 	require.NoError(t, err)
 	token, err := peruntoken.NewERC20(tokenAddr, cb)
 	require.NoError(t, err)
@@ -80,7 +80,7 @@ func NewTokenSetup(ctx context.Context, t *testing.T, rng *rand.Rand, txFinality
 
 	return &TokenSetup{
 		SB:       sb,
-		CB:       cb,
+		CB:       *cb,
 		Token:    token,
 		Contract: contract,
 		R:        require.New(t),

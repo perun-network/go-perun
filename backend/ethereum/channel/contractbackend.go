@@ -70,8 +70,8 @@ type ContractBackend struct {
 // NewContractBackend creates a new ContractBackend with the given parameters.
 // txFinalityDepth defines in how many consecutive blocks a TX has to be
 // included to be considered final. Must be at least 1.
-func NewContractBackend(cf ContractInterface, tr Transactor, txFinalityDepth uint64) ContractBackend {
-	return ContractBackend{
+func NewContractBackend(cf ContractInterface, tr Transactor, txFinalityDepth uint64) *ContractBackend {
+	return &ContractBackend{
 		ContractInterface: cf,
 		tr:                tr,
 		expectedNextNonce: make(map[common.Address]uint64),
