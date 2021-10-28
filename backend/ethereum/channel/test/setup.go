@@ -116,8 +116,8 @@ func NewSetup(t *testing.T, rng *rand.Rand, n int, blockInterval time.Duration, 
 			keystore.NewTransactor(*ksWallet, types.NewEIP155Signer(big.NewInt(1337))),
 			txFinalityDepth,
 		)
-		s.Funders[i] = ethchannel.NewFunder(cb, fundingTimeout)
-		require.True(t, s.Funders[i].RegisterAsset(asset, ethchannel.NewETHDepositor(), s.Accs[i].Account))
+		s.Funders[i] = ethchannel.NewFunder(fundingTimeout)
+		require.True(t, s.Funders[i].RegisterAsset(asset, ethchannel.NewETHDepositor(), s.Accs[i].Account, cb))
 		s.Adjs[i] = NewSimAdjudicator(cb, adjudicator, common.Address(*s.Recvs[i]), s.Accs[i].Account)
 	}
 

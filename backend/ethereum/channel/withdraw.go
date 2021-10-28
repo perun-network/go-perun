@@ -120,7 +120,7 @@ func bindAssetHolder(cb *ContractBackend, asset channel.Asset, assetIndex channe
 		log.Panic("Invalid AssetHolder ABI definition.")
 	}
 	contract := bind.NewBoundContract(assetAddr, bindings.ABI.AssetHolder, cb, cb, cb)
-	return assetHolder{ctr, &assetAddr, contract, assetIndex}
+	return assetHolder{ctr, &assetAddr, contract, assetIndex, cb}
 }
 
 func (a *Adjudicator) callAssetWithdraw(ctx context.Context, request channel.AdjudicatorReq, asset assetHolder) error {

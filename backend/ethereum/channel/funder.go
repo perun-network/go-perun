@@ -44,6 +44,7 @@ type assetHolder struct {
 	*common.Address
 	contract   *bind.BoundContract
 	assetIndex channel.Index
+	*ContractBackend
 }
 
 // Funder implements the channel.Funder interface for Ethereum.
@@ -55,7 +56,8 @@ type assetHolder struct {
 type Funder struct {
 	mtx sync.RWMutex
 
-	*ContractBackend
+	// backends defines a contract backend for each asset.
+	backends map[Asset]*ContractBackend
 	// accounts associates an Account to every AssetIndex.
 	accounts map[Asset]accounts.Account
 	// depositors associates a Depositor to every AssetIndex.
@@ -68,13 +70,13 @@ type Funder struct {
 var _ channel.Funder = (*Funder)(nil)
 
 // NewFunder creates a new ethereum funder.
-func NewFunder(backend *ContractBackend, timeout time.Duration) *Funder {
+func NewFunder(timeout time.Duration) *Funder {
 	return &Funder{
-		ContractBackend: backend,
-		accounts:        make(map[wallet.Address]accounts.Account),
-		depositors:      make(map[wallet.Address]Depositor),
-		log:             log.Get(),
-		timeout:         timeout,
+		backends:   make(map[Asset]*ContractBackend),
+		accounts:   make(map[Asset]accounts.Account),
+		depositors: make(map[Asset]Depositor),
+		log:        log.Get(),
+		timeout:    timeout,
 	}
 }
 
@@ -87,7 +89,7 @@ func NewFunder(backend *ContractBackend, timeout time.Duration) *Funder {
 //
 // It returns true if the asset was successfully registered, false if it was already
 // present.
-func (f *Funder) RegisterAsset(asset Asset, d Depositor, acc accounts.Account) bool {
+func (f *Funder) RegisterAsset(asset Asset, d Depositor, acc accounts.Account, backend *ContractBackend) bool {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
 
@@ -99,6 +101,7 @@ func (f *Funder) RegisterAsset(asset Asset, d Depositor, acc accounts.Account) b
 	}
 	f.accounts[asset] = acc
 	f.depositors[asset] = d
+	f.backends[asset] = backend
 	return true
 }
 
@@ -151,8 +154,10 @@ func (f *Funder) Fund(ctx context.Context, request channel.FundingReq) error {
 	// Wait for the TXs to be mined.
 	for a, asset := range request.State.Assets {
 		for i, tx := range txs[a] {
-			acc := f.accounts[*asset.(*Asset)]
-			if _, err := f.ConfirmTransaction(ctx, tx, acc); err != nil {
+			asset := *asset.(*Asset)
+			acc := f.accounts[asset]
+			backend := f.backends[asset]
+			if _, err := backend.ConfirmTransaction(ctx, tx, acc); err != nil {
 				if errors.Is(err, errTxTimedOut) {
 					err = client.NewTxTimedoutError(Fund.String(), tx.Hash().Hex(), err.Error())
 				}
@@ -188,8 +193,10 @@ func (f *Funder) fundAssets(ctx context.Context, channelID channel.ID, req chann
 	fundingIDs := FundingIDs(channelID, req.Params.Parts...)
 
 	for index, asset := range req.State.Assets {
+		asset_ := *asset.(*Asset)
+		cb := f.backends[asset_]
 		// Bind contract.
-		contract := bindAssetHolder(f.ContractBackend, asset, channel.Index(index))
+		contract := bindAssetHolder(cb, asset, channel.Index(index))
 		// Wait for the funding event.
 		errg.Go(func() error {
 			return f.waitForFundingConfirmation(ctx, req, contract, fundingIDs)
@@ -227,16 +234,10 @@ func (f *Funder) sendFundingTx(ctx context.Context, request channel.FundingReq, 
 // deposit deposits funds for one funding-ID by calling the associated Depositor.
 // Returns an error if no matching Depositor or Account could be found.
 func (f *Funder) deposit(ctx context.Context, bal *big.Int, asset Asset, fundingID [32]byte) (types.Transactions, error) {
-	depositor, ok := f.depositors[asset]
-	if !ok {
-		return nil, errors.Errorf("could not find Depositor for asset #%d", asset)
-	}
-	acc, ok := f.accounts[asset]
-	if !ok {
-		return nil, errors.Errorf("could not find account for asset #%d", asset)
-	}
-
-	return depositor.Deposit(ctx, *NewDepositReq(bal, f.ContractBackend, asset, acc, fundingID))
+	depositor := f.depositors[asset]
+	acc := f.accounts[asset]
+	backend := f.backends[asset]
+	return depositor.Deposit(ctx, *NewDepositReq(bal, backend, asset, acc, fundingID))
 }
 
 // checkFunded returns whether `fundingID` holds at least `amount` funds.
@@ -244,7 +245,7 @@ func (f *Funder) checkFunded(ctx context.Context, amount *big.Int, asset assetHo
 	deposited := make(chan *subscription.Event, 10)
 	subErr := make(chan error, 1)
 	// Subscribe to events.
-	sub, err := f.depositedSub(ctx, asset.contract, fundingID)
+	sub, err := f.depositedSub(ctx, &asset, fundingID)
 	if err != nil {
 		return false, errors.WithMessage(err, "subscribing to deposited event")
 	}
@@ -263,7 +264,7 @@ func (f *Funder) checkFunded(ctx context.Context, amount *big.Int, asset assetHo
 	return left.Sign() != 1, errors.WithMessagef(<-subErr, "filtering old Funding events for asset %d", asset.assetIndex)
 }
 
-func (f *Funder) depositedSub(ctx context.Context, contract *bind.BoundContract, fundingIDs ...[32]byte) (*subscription.ResistantEventSub, error) {
+func (f *Funder) depositedSub(ctx context.Context, ah *assetHolder, fundingIDs ...[32]byte) (*subscription.ResistantEventSub, error) {
 	filter := make([]interface{}, len(fundingIDs))
 	for i, fundingID := range fundingIDs {
 		filter[i] = fundingID
@@ -275,7 +276,7 @@ func (f *Funder) depositedSub(ctx context.Context, contract *bind.BoundContract,
 			Filter: [][]interface{}{filter},
 		}
 	}
-	sub, err := subscription.Subscribe(ctx, f, contract, event, startBlockOffset, f.txFinalityDepth)
+	sub, err := subscription.Subscribe(ctx, ah, ah.contract, event, startBlockOffset, ah.txFinalityDepth)
 	return sub, errors.WithMessage(err, "subscribing to deposited event")
 }
 
@@ -286,7 +287,7 @@ func (f *Funder) waitForFundingConfirmation(ctx context.Context, request channel
 	deposited := make(chan *subscription.Event)
 	subErr := make(chan error, 1)
 	// Subscribe to events.
-	sub, err := f.depositedSub(ctx, asset.contract, fundingIDs...)
+	sub, err := f.depositedSub(ctx, &asset, fundingIDs...)
 	if err != nil {
 		return errors.WithMessage(err, "subscribing to deposited event")
 	}
