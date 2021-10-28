@@ -115,7 +115,7 @@ func NewSetup(t *testing.T, rng *rand.Rand, n int, blockInterval time.Duration, 
 		)
 		s.Funders[i] = ethchannel.NewFunder(cb)
 		require.True(t, s.Funders[i].RegisterAsset(asset, ethchannel.NewETHDepositor(), s.Accs[i].Account))
-		s.Adjs[i] = NewSimAdjudicator(cb, adjudicator, common.Address(*s.Recvs[i]), s.Accs[i].Account)
+		s.Adjs[i] = NewSimAdjudicator(&cb, adjudicator, common.Address(*s.Recvs[i]), s.Accs[i].Account)
 	}
 
 	if blockInterval != 0 {
