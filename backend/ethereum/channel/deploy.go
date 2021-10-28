@@ -42,8 +42,8 @@ const deployGasLimit = 6600000
 // Returns txTimedOutError if the context is cancelled or if the context
 // deadline is exceeded when waiting for the transaction to be mined.
 func DeployPerunToken(ctx context.Context, backend ContractBackend, deployer accounts.Account, initAccs []common.Address, initBals *big.Int) (common.Address, error) {
-	return deployContract(ctx, backend, deployer, "PerunToken",
-		func(auth *bind.TransactOpts, cb ContractBackend) (common.Address, *types.Transaction, error) {
+	return deployContract(ctx, &backend, deployer, "PerunToken",
+		func(auth *bind.TransactOpts, cb *ContractBackend) (common.Address, *types.Transaction, error) {
 			addr, tx, _, err := peruntoken.DeployPerunToken(auth, backend, initAccs, initBals)
 			return addr, tx, err
 		})
@@ -53,8 +53,8 @@ func DeployPerunToken(ctx context.Context, backend ContractBackend, deployer acc
 // Returns txTimedOutError if the context is cancelled or if the context
 // deadline is exceeded when waiting for the transaction to be mined.
 func DeployETHAssetholder(ctx context.Context, backend ContractBackend, adjudicatorAddr common.Address, deployer accounts.Account) (common.Address, error) {
-	return deployContract(ctx, backend, deployer, "ETHAssetHolder",
-		func(auth *bind.TransactOpts, cb ContractBackend) (common.Address, *types.Transaction, error) {
+	return deployContract(ctx, &backend, deployer, "ETHAssetHolder",
+		func(auth *bind.TransactOpts, cb *ContractBackend) (common.Address, *types.Transaction, error) {
 			addr, tx, _, err := assetholdereth.DeployAssetHolderETH(auth, cb, adjudicatorAddr)
 			return addr, tx, err
 		})
@@ -64,8 +64,8 @@ func DeployETHAssetholder(ctx context.Context, backend ContractBackend, adjudica
 // Returns txTimedOutError if the context is cancelled or if the context
 // deadline is exceeded when waiting for the transaction to be mined.
 func DeployERC20Assetholder(ctx context.Context, backend ContractBackend, adjudicatorAddr common.Address, tokenAddr common.Address, deployer accounts.Account) (common.Address, error) {
-	return deployContract(ctx, backend, deployer, "ERC20AssetHolder",
-		func(auth *bind.TransactOpts, cb ContractBackend) (common.Address, *types.Transaction, error) {
+	return deployContract(ctx, &backend, deployer, "ERC20AssetHolder",
+		func(auth *bind.TransactOpts, cb *ContractBackend) (common.Address, *types.Transaction, error) {
 			addr, tx, _, err := assetholdererc20.DeployAssetHolderERC20(auth, backend, adjudicatorAddr, tokenAddr)
 			return addr, tx, err
 		})
@@ -75,8 +75,8 @@ func DeployERC20Assetholder(ctx context.Context, backend ContractBackend, adjudi
 // Returns txTimedOutError if the context is cancelled or if the context
 // deadline is exceeded when waiting for the transaction to be mined.
 func DeployAdjudicator(ctx context.Context, backend ContractBackend, deployer accounts.Account) (common.Address, error) {
-	return deployContract(ctx, backend, deployer, "Adjudicator",
-		func(auth *bind.TransactOpts, cb ContractBackend) (common.Address, *types.Transaction, error) {
+	return deployContract(ctx, &backend, deployer, "Adjudicator",
+		func(auth *bind.TransactOpts, cb *ContractBackend) (common.Address, *types.Transaction, error) {
 			addr, tx, _, err := adjudicator.DeployAdjudicator(auth, backend)
 			return addr, tx, err
 		})
@@ -86,8 +86,8 @@ func DeployAdjudicator(ctx context.Context, backend ContractBackend, deployer ac
 // Returns txTimedOutError if the context is cancelled or if the context
 // deadline is exceeded when waiting for the transaction to be mined.
 func DeployTrivialApp(ctx context.Context, backend ContractBackend, deployer accounts.Account) (common.Address, error) {
-	return deployContract(ctx, backend, deployer, "TrivialApp",
-		func(auth *bind.TransactOpts, cb ContractBackend) (common.Address, *types.Transaction, error) {
+	return deployContract(ctx, &backend, deployer, "TrivialApp",
+		func(auth *bind.TransactOpts, cb *ContractBackend) (common.Address, *types.Transaction, error) {
 			addr, tx, _, err := trivialapp.DeployTrivialApp(auth, backend)
 			return addr, tx, err
 		})
@@ -95,7 +95,7 @@ func DeployTrivialApp(ctx context.Context, backend ContractBackend, deployer acc
 
 // Returns txTimedOutError if the context is cancelled or if the context
 // deadline is exceeded when waiting for the transaction to be mined.
-func deployContract(ctx context.Context, cb ContractBackend, deployer accounts.Account, name string, f func(*bind.TransactOpts, ContractBackend) (common.Address, *types.Transaction, error)) (common.Address, error) {
+func deployContract(ctx context.Context, cb *ContractBackend, deployer accounts.Account, name string, f func(*bind.TransactOpts, *ContractBackend) (common.Address, *types.Transaction, error)) (common.Address, error) {
 	auth, err := cb.NewTransactor(ctx, deployGasLimit, deployer)
 	if err != nil {
 		return common.Address{}, errors.WithMessage(err, "creating transactor")
