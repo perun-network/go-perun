@@ -67,7 +67,7 @@ func TestEventSub(t *testing.T) {
 	)
 
 	// Setup Perun Token.
-	tokenAddr, err := ethchannel.DeployPerunToken(ctx, *cb, *account, []common.Address{account.Address}, channeltest.MaxBalance)
+	tokenAddr, err := ethchannel.DeployPerunToken(ctx, cb, *account, []common.Address{account.Address}, channeltest.MaxBalance)
 	require.NoError(t, err)
 	token, err := peruntoken.NewERC20(tokenAddr, cb)
 	require.NoError(t, err)
@@ -155,9 +155,9 @@ func TestEventSub_Filter(t *testing.T) {
 	)
 
 	// Setup ETH AssetHolder.
-	adjAddr, err := ethchannel.DeployAdjudicator(ctx, *cb, *account)
+	adjAddr, err := ethchannel.DeployAdjudicator(ctx, cb, *account)
 	require.NoError(t, err)
-	ahAddr, err := ethchannel.DeployETHAssetholder(ctx, *cb, adjAddr, *account)
+	ahAddr, err := ethchannel.DeployETHAssetholder(ctx, cb, adjAddr, *account)
 	require.NoError(t, err)
 	ah, err := assetholdereth.NewAssetHolder(ahAddr, cb)
 	require.NoError(t, err)

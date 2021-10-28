@@ -38,7 +38,7 @@ func TestValidateAssetHolderERC20(t *testing.T) {
 		rng      = pkgtest.Prng(t)
 		token    = common.Address(ethwallettest.NewRandomAddress(rng))
 		deployer = func(ctx context.Context,
-			backend ethchannel.ContractBackend,
+			backend *ethchannel.ContractBackend,
 			adjudicatorAddr common.Address,
 			deployer accounts.Account) (common.Address, error) {
 			return ethchannel.DeployERC20Assetholder(ctx, backend, adjudicatorAddr, token, deployer)
@@ -54,7 +54,7 @@ func TestValidateAssetHolderERC20(t *testing.T) {
 
 func testValidateAssetHolder(t *testing.T,
 	deployer func(ctx context.Context,
-		backend ethchannel.ContractBackend,
+		backend *ethchannel.ContractBackend,
 		adjudicatorAddr common.Address,
 		deployer accounts.Account) (common.Address, error),
 	validator func(ctx context.Context,
@@ -73,7 +73,7 @@ func testValidateAssetHolder(t *testing.T,
 
 	t.Run("incorrect_asset_code", func(t *testing.T) {
 		randomAddr1 := (common.Address)(ethwallettest.NewRandomAddress(rng))
-		incorrectCodeAddr, err := ethchannel.DeployAdjudicator(ctx, *s.CB, s.TxSender.Account)
+		incorrectCodeAddr, err := ethchannel.DeployAdjudicator(ctx, s.CB, s.TxSender.Account)
 		require.NoError(t, err)
 		require.True(t, ethchannel.IsErrInvalidContractCode(validator(ctx, s.CB, incorrectCodeAddr, randomAddr1)))
 	})
@@ -81,22 +81,22 @@ func testValidateAssetHolder(t *testing.T,
 	t.Run("incorrect_adj_addr", func(t *testing.T) {
 		adjAddrToSet := (common.Address)(ethwallettest.NewRandomAddress(rng))
 		adjAddrToExpect := (common.Address)(ethwallettest.NewRandomAddress(rng))
-		assetHolderAddr, err := deployer(ctx, *s.CB, adjAddrToSet, s.TxSender.Account)
+		assetHolderAddr, err := deployer(ctx, s.CB, adjAddrToSet, s.TxSender.Account)
 		require.NoError(t, err)
 		require.True(t, ethchannel.IsErrInvalidContractCode(validator(ctx, s.CB, assetHolderAddr, adjAddrToExpect)))
 	})
 
 	t.Run("correct_adj_addr_with_invalid_contract", func(t *testing.T) {
 		adjudicatorAddr := (common.Address)(ethwallettest.NewRandomAddress(rng))
-		assetHolderAddr, err := deployer(ctx, *s.CB, adjudicatorAddr, s.TxSender.Account)
+		assetHolderAddr, err := deployer(ctx, s.CB, adjudicatorAddr, s.TxSender.Account)
 		require.NoError(t, err)
 		require.NoError(t, validator(ctx, s.CB, assetHolderAddr, adjudicatorAddr))
 	})
 
 	t.Run("all_correct", func(t *testing.T) {
-		adjudicatorAddr, err := ethchannel.DeployAdjudicator(ctx, *s.CB, s.TxSender.Account)
+		adjudicatorAddr, err := ethchannel.DeployAdjudicator(ctx, s.CB, s.TxSender.Account)
 		require.NoError(t, err)
-		assetHolderAddr, err := deployer(ctx, *s.CB, adjudicatorAddr, s.TxSender.Account)
+		assetHolderAddr, err := deployer(ctx, s.CB, adjudicatorAddr, s.TxSender.Account)
 		require.NoError(t, err)
 		require.NoError(t, validator(ctx, s.CB, assetHolderAddr, adjudicatorAddr))
 	})

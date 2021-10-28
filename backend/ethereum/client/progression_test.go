@@ -66,7 +66,7 @@ func TestProgression(t *testing.T) {
 func deployMockApp(t *testing.T, s *test.Setup) wallet.Address {
 	ctx, cancel := context.WithTimeout(context.Background(), ctest.DefaultTimeout)
 	defer cancel()
-	addr, err := ethchannel.DeployTrivialApp(ctx, *s.CB, s.TxSender.Account)
+	addr, err := ethchannel.DeployTrivialApp(ctx, s.CB, s.TxSender.Account)
 	require.NoError(t, err)
 	return ethwallet.AsWalletAddr(addr)
 }

@@ -395,15 +395,15 @@ func newNFunders(
 	)
 
 	// Deploy ETHAssetholder
-	assetAddr1, err := ethchannel.DeployETHAssetholder(ctx, *cb, deployAccount.Address, *deployAccount)
+	assetAddr1, err := ethchannel.DeployETHAssetholder(ctx, cb, deployAccount.Address, *deployAccount)
 	require.NoError(t, err, "Deployment should succeed")
 	t.Logf("asset holder #1 address is %s", assetAddr1.Hex())
 	asset1 := ethchannel.Asset(assetAddr1)
 	// Deploy PerunToken + ETHAssetholder.
 
-	token, err := ethchannel.DeployPerunToken(ctx, *cb, *deployAccount, []common.Address{tokenAcc.Address}, channeltest.MaxBalance)
+	token, err := ethchannel.DeployPerunToken(ctx, cb, *deployAccount, []common.Address{tokenAcc.Address}, channeltest.MaxBalance)
 	require.NoError(t, err, "Deployment should succeed")
-	assetAddr2, err := ethchannel.DeployERC20Assetholder(ctx, *cb, common.Address{}, token, *deployAccount)
+	assetAddr2, err := ethchannel.DeployERC20Assetholder(ctx, cb, common.Address{}, token, *deployAccount)
 	require.NoError(t, err, "Deployment should succeed")
 	t.Logf("asset holder #2 address is %s", assetAddr2.Hex())
 	asset2 := ethchannel.Asset(assetAddr2)

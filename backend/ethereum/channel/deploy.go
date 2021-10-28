@@ -41,8 +41,8 @@ const deployGasLimit = 6600000
 // DeployPerunToken deploys a new PerunToken contract.
 // Returns txTimedOutError if the context is cancelled or if the context
 // deadline is exceeded when waiting for the transaction to be mined.
-func DeployPerunToken(ctx context.Context, backend ContractBackend, deployer accounts.Account, initAccs []common.Address, initBals *big.Int) (common.Address, error) {
-	return deployContract(ctx, &backend, deployer, "PerunToken",
+func DeployPerunToken(ctx context.Context, backend *ContractBackend, deployer accounts.Account, initAccs []common.Address, initBals *big.Int) (common.Address, error) {
+	return deployContract(ctx, backend, deployer, "PerunToken",
 		func(auth *bind.TransactOpts, cb *ContractBackend) (common.Address, *types.Transaction, error) {
 			addr, tx, _, err := peruntoken.DeployPerunToken(auth, backend, initAccs, initBals)
 			return addr, tx, err
@@ -52,8 +52,8 @@ func DeployPerunToken(ctx context.Context, backend ContractBackend, deployer acc
 // DeployETHAssetholder deploys a new ETHAssetHolder contract.
 // Returns txTimedOutError if the context is cancelled or if the context
 // deadline is exceeded when waiting for the transaction to be mined.
-func DeployETHAssetholder(ctx context.Context, backend ContractBackend, adjudicatorAddr common.Address, deployer accounts.Account) (common.Address, error) {
-	return deployContract(ctx, &backend, deployer, "ETHAssetHolder",
+func DeployETHAssetholder(ctx context.Context, backend *ContractBackend, adjudicatorAddr common.Address, deployer accounts.Account) (common.Address, error) {
+	return deployContract(ctx, backend, deployer, "ETHAssetHolder",
 		func(auth *bind.TransactOpts, cb *ContractBackend) (common.Address, *types.Transaction, error) {
 			addr, tx, _, err := assetholdereth.DeployAssetHolderETH(auth, cb, adjudicatorAddr)
 			return addr, tx, err
@@ -63,8 +63,8 @@ func DeployETHAssetholder(ctx context.Context, backend ContractBackend, adjudica
 // DeployERC20Assetholder deploys a new ERC20AssetHolder contract.
 // Returns txTimedOutError if the context is cancelled or if the context
 // deadline is exceeded when waiting for the transaction to be mined.
-func DeployERC20Assetholder(ctx context.Context, backend ContractBackend, adjudicatorAddr common.Address, tokenAddr common.Address, deployer accounts.Account) (common.Address, error) {
-	return deployContract(ctx, &backend, deployer, "ERC20AssetHolder",
+func DeployERC20Assetholder(ctx context.Context, backend *ContractBackend, adjudicatorAddr common.Address, tokenAddr common.Address, deployer accounts.Account) (common.Address, error) {
+	return deployContract(ctx, backend, deployer, "ERC20AssetHolder",
 		func(auth *bind.TransactOpts, cb *ContractBackend) (common.Address, *types.Transaction, error) {
 			addr, tx, _, err := assetholdererc20.DeployAssetHolderERC20(auth, backend, adjudicatorAddr, tokenAddr)
 			return addr, tx, err
@@ -74,8 +74,8 @@ func DeployERC20Assetholder(ctx context.Context, backend ContractBackend, adjudi
 // DeployAdjudicator deploys a new Adjudicator contract.
 // Returns txTimedOutError if the context is cancelled or if the context
 // deadline is exceeded when waiting for the transaction to be mined.
-func DeployAdjudicator(ctx context.Context, backend ContractBackend, deployer accounts.Account) (common.Address, error) {
-	return deployContract(ctx, &backend, deployer, "Adjudicator",
+func DeployAdjudicator(ctx context.Context, backend *ContractBackend, deployer accounts.Account) (common.Address, error) {
+	return deployContract(ctx, backend, deployer, "Adjudicator",
 		func(auth *bind.TransactOpts, cb *ContractBackend) (common.Address, *types.Transaction, error) {
 			addr, tx, _, err := adjudicator.DeployAdjudicator(auth, backend)
 			return addr, tx, err
@@ -85,8 +85,8 @@ func DeployAdjudicator(ctx context.Context, backend ContractBackend, deployer ac
 // DeployTrivialApp deploys a new TrivialApp contract.
 // Returns txTimedOutError if the context is cancelled or if the context
 // deadline is exceeded when waiting for the transaction to be mined.
-func DeployTrivialApp(ctx context.Context, backend ContractBackend, deployer accounts.Account) (common.Address, error) {
-	return deployContract(ctx, &backend, deployer, "TrivialApp",
+func DeployTrivialApp(ctx context.Context, backend *ContractBackend, deployer accounts.Account) (common.Address, error) {
+	return deployContract(ctx, backend, deployer, "TrivialApp",
 		func(auth *bind.TransactOpts, cb *ContractBackend) (common.Address, *types.Transaction, error) {
 			addr, tx, _, err := trivialapp.DeployTrivialApp(auth, backend)
 			return addr, tx, err

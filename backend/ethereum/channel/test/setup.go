@@ -95,9 +95,9 @@ func NewSetup(t *testing.T, rng *rand.Rand, n int, blockInterval time.Duration, 
 
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTxTimeout)
 	defer cancel()
-	adjudicator, err := ethchannel.DeployAdjudicator(ctx, *s.CB, s.TxSender.Account)
+	adjudicator, err := ethchannel.DeployAdjudicator(ctx, s.CB, s.TxSender.Account)
 	require.NoError(t, err)
-	s.Asset, err = ethchannel.DeployETHAssetholder(ctx, *s.CB, adjudicator, s.TxSender.Account)
+	s.Asset, err = ethchannel.DeployETHAssetholder(ctx, s.CB, adjudicator, s.TxSender.Account)
 	require.NoError(t, err)
 	asset := ethchannel.Asset(s.Asset)
 

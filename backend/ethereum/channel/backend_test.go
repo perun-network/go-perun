@@ -41,9 +41,9 @@ func TestAdjudicator_PureFunctions(t *testing.T) {
 	s := ethchanneltest.NewSimSetup(rng, TxFinalityDepth)
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	adj, err := channel.DeployAdjudicator(ctx, *s.CB, s.TxSender.Account)
+	adj, err := channel.DeployAdjudicator(ctx, s.CB, s.TxSender.Account)
 	require.NoError(t, err)
-	contr, err := adjudicator.NewAdjudicator(adj, *s.CB)
+	contr, err := adjudicator.NewAdjudicator(adj, s.CB)
 	require.NoError(t, err)
 	opts := &bind.CallOpts{Context: ctx}
 
