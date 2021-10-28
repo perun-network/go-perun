@@ -144,7 +144,7 @@ func testFunderOneForAllFunding(t *testing.T, n int) {
 	}
 	ct.Wait("funding")
 	// Check on-chain balances.
-	assert.NoError(t, compareOnChainAlloc(ctx, params, agreement, alloc.Assets, &funders[0].ContractBackend))
+	assert.NoError(t, compareOnChainAlloc(ctx, params, agreement, alloc.Assets, funders[0].ContractBackend))
 }
 
 func TestFunder_CrossOverFunding(t *testing.T) {
@@ -183,7 +183,7 @@ func testFunderCrossOverFunding(t *testing.T, n int) {
 
 	ct.Wait("funding")
 	// Check result balances
-	assert.NoError(t, compareOnChainAlloc(ctx, params, agreement, alloc.Assets, &funders[0].ContractBackend))
+	assert.NoError(t, compareOnChainAlloc(ctx, params, agreement, alloc.Assets, funders[0].ContractBackend))
 }
 
 func TestFunder_ZeroBalance(t *testing.T) {
@@ -233,7 +233,7 @@ func testFunderZeroBalance(t *testing.T, n int) {
 	}
 	ct.Wait("funding")
 	// Check result balances
-	assert.NoError(t, compareOnChainAlloc(ctx, params, agreement, alloc.Assets, &funders[0].ContractBackend))
+	assert.NoError(t, compareOnChainAlloc(ctx, params, agreement, alloc.Assets, funders[0].ContractBackend))
 }
 
 func TestFunder_Multiple(t *testing.T) {
@@ -271,7 +271,7 @@ func TestFunder_Multiple(t *testing.T) {
 	// Check result balances
 	ctx, cancel = context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	assert.NoError(t, compareOnChainAlloc(ctx, params, alloc.Balances, alloc.Assets, &funders[0].ContractBackend))
+	assert.NoError(t, compareOnChainAlloc(ctx, params, alloc.Balances, alloc.Assets, funders[0].ContractBackend))
 }
 
 func TestFunder_PeerTimeout(t *testing.T) {
@@ -364,7 +364,7 @@ func testFunderFunding(t *testing.T, n int) {
 
 	ct.Wait("funding")
 	// Check result balances
-	assert.NoError(t, compareOnChainAlloc(ctx, params, alloc.Balances, alloc.Assets, &funders[0].ContractBackend))
+	assert.NoError(t, compareOnChainAlloc(ctx, params, alloc.Balances, alloc.Assets, funders[0].ContractBackend))
 }
 
 func newNFunders(

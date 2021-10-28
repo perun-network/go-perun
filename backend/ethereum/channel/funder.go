@@ -55,7 +55,7 @@ type assetHolder struct {
 type Funder struct {
 	mtx sync.RWMutex
 
-	ContractBackend
+	*ContractBackend
 	// accounts associates an Account to every AssetIndex.
 	accounts map[Asset]accounts.Account
 	// depositors associates a Depositor to every AssetIndex.
@@ -67,7 +67,7 @@ type Funder struct {
 var _ channel.Funder = (*Funder)(nil)
 
 // NewFunder creates a new ethereum funder.
-func NewFunder(backend ContractBackend) *Funder {
+func NewFunder(backend *ContractBackend, timeout time.Duration) *Funder {
 	return &Funder{
 		ContractBackend: backend,
 		accounts:        make(map[wallet.Address]accounts.Account),
@@ -189,7 +189,7 @@ func (f *Funder) fundAssets(ctx context.Context, channelID channel.ID, req chann
 
 	for index, asset := range req.State.Assets {
 		// Bind contract.
-		contract := bindAssetHolder(&f.ContractBackend, asset, channel.Index(index))
+		contract := bindAssetHolder(f.ContractBackend, asset, channel.Index(index))
 		// Wait for the funding event.
 		errg.Go(func() error {
 			return f.waitForFundingConfirmation(ctx, req, contract, fundingIDs)
@@ -236,7 +236,7 @@ func (f *Funder) deposit(ctx context.Context, bal *big.Int, asset Asset, funding
 		return nil, errors.Errorf("could not find account for asset #%d", asset)
 	}
 
-	return depositor.Deposit(ctx, *NewDepositReq(bal, f.ContractBackend, asset, acc, fundingID))
+	return depositor.Deposit(ctx, *NewDepositReq(bal, *f.ContractBackend, asset, acc, fundingID))
 }
 
 // checkFunded returns whether `fundingID` holds at least `amount` funds.
