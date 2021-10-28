@@ -43,7 +43,8 @@ import (
 )
 
 const (
-	txGasLimit = 100000
+	txGasLimit     = 100000
+	fundingTimeout = 1 * time.Second
 )
 
 func TestFunder_RegisterAsset_IsAssetRegistered(t *testing.T) {

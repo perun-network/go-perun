@@ -18,6 +18,7 @@ import (
 	"context"
 	"math/big"
 	"sync"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -34,7 +35,6 @@ import (
 	"perun.network/go-perun/channel"
 	"perun.network/go-perun/client"
 	"perun.network/go-perun/log"
-	pcontext "perun.network/go-perun/pkg/context"
 	perror "perun.network/go-perun/pkg/errors"
 	perunwallet "perun.network/go-perun/wallet"
 )
@@ -61,6 +61,7 @@ type Funder struct {
 	// depositors associates a Depositor to every AssetIndex.
 	depositors map[Asset]Depositor
 	log        log.Logger // structured logger
+	timeout    time.Duration
 }
 
 // compile time check that we implement the perun funder interface.
@@ -73,6 +74,7 @@ func NewFunder(backend *ContractBackend, timeout time.Duration) *Funder {
 		accounts:        make(map[wallet.Address]accounts.Account),
 		depositors:      make(map[wallet.Address]Depositor),
 		log:             log.Get(),
+		timeout:         timeout,
 	}
 }
 
@@ -132,17 +134,15 @@ func (f *Funder) Fund(ctx context.Context, request channel.FundingReq) error {
 
 	// We wait for the funding timeout in a go routine and cancel the funding
 	// context if the timeout elapses.
-	timeout, err := NewBlockTimeoutDuration(ctx, f.ContractInterface, request.Params.ChallengeDuration)
-	if err != nil {
-		return errors.WithMessage(err, "creating block timeout")
-	}
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel() // in case we return before block timeout
 	go func() {
-		if err := timeout.Wait(ctx); err != nil && !pcontext.IsContextError(err) {
-			f.log.Warn("Fund: BlockTimeout.Wait runtime error: ", err)
+		select {
+		case <-time.After(f.timeout):
+			f.log.Warn("funding timeout")
+			cancel() // cancel funding context on funding timeout
+		case <-ctx.Done():
 		}
-		cancel() // cancel funding context on funding timeout
 	}()
 
 	// Fund each asset, saving the TX in `txs` and the errors in `errg`.

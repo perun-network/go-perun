@@ -32,7 +32,10 @@ import (
 	wallettest "perun.network/go-perun/wallet/test"
 )
 
-const defaultTxTimeout = 5 * time.Second
+const (
+	defaultTxTimeout = 5 * time.Second
+	fundingTimeout   = 1 * time.Second
+)
 
 type (
 	// SimSetup holds the test setup for a simulated backend.
