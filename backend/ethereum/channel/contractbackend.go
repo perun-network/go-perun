@@ -62,7 +62,7 @@ type Transactor interface {
 type ContractBackend struct {
 	ContractInterface
 	tr                Transactor
-	nonceMtx          *sync.Mutex
+	nonceMtx          sync.Mutex
 	expectedNextNonce map[common.Address]uint64
 	txFinalityDepth   uint64
 }
@@ -75,7 +75,6 @@ func NewContractBackend(cf ContractInterface, tr Transactor, txFinalityDepth uin
 		ContractInterface: cf,
 		tr:                tr,
 		expectedNextNonce: make(map[common.Address]uint64),
-		nonceMtx:          &sync.Mutex{},
 		txFinalityDepth:   txFinalityDepth,
 	}
 }
