@@ -44,7 +44,21 @@ func Encode(writer io.Writer, values ...interface{}) (err error) { //nolint: cyc
 		case [32]byte:
 			_, err = writer.Write(v[:])
 		case []byte:
-			err = ByteSlice(v).Encode(writer)
+			l := len(v)
+			if l > uint16MaxValue {
+				return errors.Errorf("lenth of marshaled data is %d, should be <= %d", l, uint16MaxValue)
+			}
+
+			// Write length.
+			err = binary.Write(writer, byteOrder, uint16(l))
+			if err != nil {
+				return errors.WithMessage(err, "writing length of marshalled data")
+			}
+
+			// Write value.
+			if l > 0 {
+				_, err = writer.Write(v)
+			}
 		case string:
 			err = encodeString(writer, v)
 		case encoding.BinaryMarshaler:
@@ -54,22 +68,9 @@ func Encode(writer io.Writer, values ...interface{}) (err error) { //nolint: cyc
 				return errors.WithMessage(err, "marshaling to byte array")
 			}
 
-			length := len(data)
-			if length > uint16MaxValue {
-				panic(fmt.Sprintf("lenth of marshaled data is %d, should be <= %d", len(data), uint16MaxValue))
-			}
-			err = binary.Write(writer, byteOrder, uint16(length))
-			if err != nil {
-				return errors.WithMessage(err, "writing length of marshalled data")
-			}
-
-			// Nothing to be encoded when length is zero.
-			if length == 0 {
-				break
-			}
-			err = ByteSlice(data).Encode(writer)
+			err = encodeBytes(writer, data)
 		default:
-			if enc, ok := value.(Encoder); ok {
+			if enc, ok := value.(Encoder); ok { //TODO probably remove this.
 				err = enc.Encode(writer)
 			} else {
 				panic(fmt.Sprintf("perunio.Encode(): Invalid type %T", v))
@@ -102,25 +103,25 @@ func Decode(reader io.Reader, values ...interface{}) (err error) {
 		case *[32]byte:
 			_, err = io.ReadFull(reader, v[:])
 		case *[]byte:
-			d := ByteSlice(*v)
-			err = d.Decode(reader)
-		case *string:
-			err = decodeString(reader, v)
-		case encoding.BinaryUnmarshaler:
-			var length uint16
-			err = binary.Read(reader, byteOrder, &length)
+			// Read l.
+			var l uint16
+			err = binary.Read(reader, byteOrder, &l)
 			if err != nil {
 				return errors.WithMessage(err, "reading length of binary data")
 			}
 
-			// Nothing to be decoded when length is zero.
-			if length == 0 {
-				break
+			// Read value.
+			if l > 0 {
+				*v = make([]byte, l)
+				_, err = io.ReadFull(reader, *v)
 			}
-			var data ByteSlice = make([]byte, length)
-			err = data.Decode(reader)
+		case *string:
+			err = decodeString(reader, v)
+		case encoding.BinaryUnmarshaler:
+			var data []byte
+			err = decodeBytes(reader, &data)
 			if err != nil {
-				return errors.WithMessage(err, "reading binary data")
+				return errors.WithMessage(err, "decoding data")
 			}
 
 			err = v.UnmarshalBinary(data)
