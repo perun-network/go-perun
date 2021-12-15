@@ -196,7 +196,7 @@ func (i *ChannelIterator) Next(context.Context) bool {
 	}
 	i.ch.StagingTXV.Sigs = make([]wallet.Sig, len(i.ch.ParamsV.Parts))
 	for idx, key := range sigKeys(len(i.ch.ParamsV.Parts)) {
-		i.decodeNext(key, wallet.SigDec{Sig: &i.ch.StagingTXV.Sigs[idx]}, allowEmpty)
+		i.decodeNext(key, &i.ch.StagingTXV.Sigs[idx], allowEmpty)
 	}
 
 	return i.decodeNext("staging:state", &PersistedState{&i.ch.StagingTXV.State}, allowEmpty)

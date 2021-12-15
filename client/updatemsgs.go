@@ -139,11 +139,7 @@ func (c *msgChannelUpdate) Decode(r io.Reader) (err error) {
 	if c.State == nil {
 		c.State = new(channel.State)
 	}
-	if err := perunio.Decode(r, c.State, &c.ActorIdx); err != nil {
-		return err
-	}
-	c.Sig, err = wallet.DecodeSig(r)
-	return err
+	return perunio.Decode(r, c.State, &c.ActorIdx, &c.Sig)
 }
 
 func (c msgChannelUpdateAcc) Encode(w io.Writer) error {
@@ -151,11 +147,7 @@ func (c msgChannelUpdateAcc) Encode(w io.Writer) error {
 }
 
 func (c *msgChannelUpdateAcc) Decode(r io.Reader) (err error) {
-	if err := perunio.Decode(r, &c.ChannelID, &c.Version); err != nil {
-		return err
-	}
-	c.Sig, err = wallet.DecodeSig(r)
-	return err
+	return perunio.Decode(r, &c.ChannelID, &c.Version, &c.Sig)
 }
 
 func (c msgChannelUpdateRej) Encode(w io.Writer) error {
