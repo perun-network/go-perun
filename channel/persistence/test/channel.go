@@ -143,7 +143,7 @@ func requireEqualSigs(t require.TestingT, expected, actual []wallet.Sig) {
 
 func isNilSigs(s []wallet.Sig) bool {
 	for _, el := range s {
-		if el != nil {
+		if len(el) != 0 {
 			return false
 		}
 	}
