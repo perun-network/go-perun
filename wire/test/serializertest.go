@@ -28,13 +28,13 @@ import (
 // and decoding of serializer values works.
 func GenericSerializerTest(t *testing.T, serializers ...perunio.Serializer) {
 	t.Helper()
-	genericDecodeEncodeTest(t, serializers...)
+	genericEncodeDecodeTest(t, serializers...)
 	GenericBrokenPipeTest(t, serializers...)
 }
 
-// genericDecodeEncodeTest tests whether encoding and then decoding
+// genericEncodeDecodeTest tests whether encoding and then decoding
 // serializer values results in the original values.
-func genericDecodeEncodeTest(t *testing.T, serializers ...perunio.Serializer) {
+func genericEncodeDecodeTest(t *testing.T, serializers ...perunio.Serializer) {
 	t.Helper()
 	for i, v := range serializers {
 		r, w := io.Pipe()
