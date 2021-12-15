@@ -81,24 +81,6 @@ func TestAccountWithWalletAndBackend(t *testing.T, s *Setup) { //nolint:revive /
 	if valid && err != nil {
 		t.Error("Verification of invalid signature should produce error or return false")
 	}
-
-	// Test DecodeSig
-	sig, err = acc.SignData(s.DataToSign)
-	require.NoError(t, err, "Sign with unlocked account should succeed")
-
-	buff := new(bytes.Buffer)
-	err = perunio.Encode(buff, sig)
-	require.NoError(t, err, "encode sig")
-	sign2, err := s.Backend.DecodeSig(buff)
-	assert.NoError(t, err, "Decoded signature should work")
-	assert.Equal(t, sig, sign2, "Decoded signature should be equal to the original")
-
-	// Test DecodeSig on short stream
-	err = perunio.Encode(buff, sig)
-	require.NoError(t, err, "encode sig")
-	shortBuff := bytes.NewBuffer(buff.Bytes()[:len(buff.Bytes())-1]) // remove one byte
-	_, err = s.Backend.DecodeSig(shortBuff)
-	assert.Error(t, err, "DecodeSig on short stream should error")
 }
 
 // GenericSignatureSizeTest tests that the size of the signatures produced by
