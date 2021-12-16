@@ -20,6 +20,7 @@ import (
 	"github.com/pkg/errors"
 
 	"perun.network/go-perun/wire"
+	_ "perun.network/go-perun/wire/perunio/encoder" // init encoder
 	"polycry.pt/poly-go/sync/atomic"
 )
 
@@ -39,7 +40,7 @@ func NewIoConn(conn io.ReadWriteCloser) Conn {
 }
 
 func (c *ioConn) Send(e *wire.Envelope) error {
-	if err := e.Encode(c.conn); err != nil {
+	if err := wire.EncodeEnvelope(c.conn, e); err != nil {
 		c.conn.Close()
 		return err
 	}
@@ -47,12 +48,12 @@ func (c *ioConn) Send(e *wire.Envelope) error {
 }
 
 func (c *ioConn) Recv() (*wire.Envelope, error) {
-	var e wire.Envelope
-	if err := e.Decode(c.conn); err != nil {
+	e, err := wire.DecodeEnvelope(c.conn)
+	if err != nil {
 		c.conn.Close()
 		return nil, err
 	}
-	return &e, nil
+	return e, nil
 }
 
 func (c *ioConn) Close() error {
