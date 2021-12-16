@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package perunio
+package perunio_test
 
 import (
 	"io"
@@ -23,6 +23,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
+	"perun.network/go-perun/wire/perunio"
 
 	polytest "polycry.pt/poly-go/test"
 )
@@ -42,15 +43,15 @@ func TestWrongTypes(t *testing.T) {
 	for _i, _v := range values {
 		v := _v
 		i := _i
-		panics, _ := polytest.CheckPanic(func() { _ = Encode(w, v) })
+		panics, _ := polytest.CheckPanic(func() { _ = perunio.Encode(w, v) })
 		assert.True(t, panics, "Encode() must panic on invalid type %T", v)
 
 		d[i] = reflect.New(reflect.TypeOf(v)).Interface()
-		panics, _ = polytest.CheckPanic(func() { _ = Decode(r, d[i]) })
+		panics, _ = polytest.CheckPanic(func() { _ = perunio.Decode(r, d[i]) })
 		assert.True(t, panics, "Decode() must panic on invalid type %T", v)
 	}
 
-	polytest.CheckPanic(func() { _ = Decode(r, d...) })
+	polytest.CheckPanic(func() { _ = perunio.Decode(r, d...) })
 }
 
 func TestEncodeDecode(t *testing.T) {
@@ -84,7 +85,7 @@ func TestEncodeDecode(t *testing.T) {
 	}
 
 	go func() {
-		a.Nil(Encode(w, values...), "failed to encode values")
+		a.Nil(perunio.Encode(w, values...), "failed to encode values")
 	}()
 
 	d := make([]interface{}, len(values))
@@ -92,7 +93,7 @@ func TestEncodeDecode(t *testing.T) {
 		d[i] = reflect.New(reflect.TypeOf(v)).Interface()
 	}
 
-	a.Nil(Decode(r, d...), "failed to decode values")
+	a.Nil(perunio.Decode(r, d...), "failed to decode values")
 
 	for i, v := range values {
 		if !reflect.DeepEqual(reflect.ValueOf(d[i]).Elem().Interface(), v) {
