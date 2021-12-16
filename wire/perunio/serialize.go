@@ -79,12 +79,10 @@ func Encode(writer io.Writer, values ...interface{}) (err error) { //nolint: cyc
 			}
 
 			err = encodeBytes(writer, data)
+		case Encoder:
+			err = v.Encode(writer)
 		default:
-			if enc, ok := value.(Encoder); ok { //TODO probably remove this.
-				err = enc.Encode(writer)
-			} else {
-				panic(fmt.Sprintf("perunio.Encode(): Invalid type %T", v))
-			}
+			panic(fmt.Sprintf("perunio.Encode(): Invalid type %T", v))
 		}
 
 		if err != nil {
