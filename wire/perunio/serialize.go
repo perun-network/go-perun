@@ -44,7 +44,7 @@ func Encode(writer io.Writer, values ...interface{}) (err error) { //nolint: cyc
 		case []byte:
 			err = encodeBytes(writer, v)
 		case string:
-			err = encodeString(writer, v)
+			err = encodeBytes(writer, []byte(v))
 		case encoding.BinaryMarshaler:
 			var data []byte
 			data, err = v.MarshalBinary()
@@ -89,7 +89,10 @@ func Decode(reader io.Reader, values ...interface{}) (err error) {
 		case *[]byte:
 			err = decodeBytes(reader, v)
 		case *string:
-			err = decodeString(reader, v)
+			// err = decodeString(reader, v)
+			var b []byte
+			err = decodeBytes(reader, &b)
+			*v = string(b)
 		case encoding.BinaryUnmarshaler:
 			var data []byte
 			err = decodeBytes(reader, &data)
