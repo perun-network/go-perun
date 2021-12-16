@@ -26,11 +26,11 @@ type serializerMsg struct {
 }
 
 func (msg *serializerMsg) Encode(writer io.Writer) error {
-	return wire.Encode(msg.Msg, writer)
+	return wire.EncodeMessage(msg.Msg, writer)
 }
 
 func (msg *serializerMsg) Decode(reader io.Reader) (err error) {
-	msg.Msg, err = wire.Decode(reader)
+	msg.Msg, err = wire.DecodeMessage(reader)
 	return err
 }
 

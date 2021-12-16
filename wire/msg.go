@@ -20,7 +20,6 @@ import (
 	"strconv"
 
 	"github.com/pkg/errors"
-
 	"perun.network/go-perun/wire/perunio"
 )
 
@@ -49,7 +48,7 @@ func (env *Envelope) Encode(w io.Writer) error {
 	if err := perunio.Encode(w, env.Sender, env.Recipient); err != nil {
 		return err
 	}
-	return Encode(env.Msg, w)
+	return EncodeMessage(env.Msg, w)
 }
 
 // Decode decodes an Envelope from an io.Reader.
@@ -62,20 +61,20 @@ func (env *Envelope) Decode(r io.Reader) (err error) {
 	if err = perunio.Decode(r, env.Recipient); err != nil {
 		return err
 	}
-	env.Msg, err = Decode(r)
+	env.Msg, err = DecodeMessage(r)
 	return err
 }
 
-// Encode encodes a message into an io.Writer. It also encodes the
+// EncodeMessage encodes a message into an io.Writer. It also encodes the
 // message type whereas the Msg.Encode implementation is assumed not to write
 // the type.
-func Encode(msg Msg, w io.Writer) error {
+func EncodeMessage(msg Msg, w io.Writer) error { //TODO unexport
 	// Encode the message type and payload
 	return perunio.Encode(w, byte(msg.Type()), msg)
 }
 
-// Decode decodes a message from an io.Reader.
-func Decode(r io.Reader) (Msg, error) {
+// DecodeMessage decodes a message from an io.Reader.
+func DecodeMessage(r io.Reader) (Msg, error) { //TODO unexport
 	var t Type
 	if err := perunio.Decode(r, (*byte)(&t)); err != nil {
 		return nil, errors.WithMessage(err, "failed to decode message Type")
