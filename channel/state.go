@@ -15,6 +15,7 @@
 package channel
 
 import (
+	"bytes"
 	"encoding"
 	"io"
 
@@ -58,6 +59,9 @@ type (
 	Data interface {
 		encoding.BinaryMarshaler
 		encoding.BinaryUnmarshaler
+
+		// // Equal returns true iff the two objects are the same.
+		// Equal(Data) bool
 
 		// Clone should return a deep copy of the Data object.
 		// It should return nil if the Data object is nil.
@@ -140,7 +144,7 @@ func (s *State) Equal(t *State) error {
 	if err := s.Allocation.Equal(&t.Allocation); err != nil {
 		return errors.WithMessage(err, "different Allocations")
 	}
-	if ok, err := perunio.EqualBinary(s.Data, t.Data); err != nil {
+	if ok, err := equalBinary(s.Data, t.Data); err != nil {
 		return errors.WithMessage(err, "comparing App data encoding")
 	} else if !ok {
 		return errors.Errorf("different App data")
@@ -155,4 +159,26 @@ func (s *State) Equal(t *State) error {
 // parent channel's locked funds.
 func (s *State) ToSubAlloc() *SubAlloc {
 	return NewSubAlloc(s.ID, s.Allocation.Sum(), nil)
+}
+
+func equalBinary(a, b encoding.BinaryMarshaler) (bool, error) {
+	// golang does not have a XOR
+	if (a == nil) != (b == nil) {
+		return false, errors.New("only one argument was nil")
+	}
+	// just using a == b would be too easy here since go panics
+	if (a == nil) && (b == nil) {
+		return true, nil
+	}
+
+	binaryA, err := a.MarshalBinary()
+	if err != nil {
+		return false, errors.Wrap(err, "EqualBinary: marshaling a")
+	}
+	binaryB, err := b.MarshalBinary()
+	if err != nil {
+		return false, errors.Wrap(err, "EqualBinary: marshaling b")
+	}
+
+	return bytes.Equal(binaryA, binaryB), nil
 }
