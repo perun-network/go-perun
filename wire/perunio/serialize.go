@@ -38,7 +38,11 @@ func Encode(writer io.Writer, values ...interface{}) (err error) { //nolint: cyc
 		case time.Time:
 			err = binary.Write(writer, byteOrder, v.UnixNano())
 		case *big.Int:
-			err = BigInt{v}.Encode(writer)
+			if v.Sign() == -1 {
+				err = errors.New("encoding of negative big.Int not implemented")
+				break
+			}
+			err = encodeBytes(writer, v.Bytes())
 		case [32]byte:
 			_, err = writer.Write(v[:])
 		case []byte:
@@ -81,9 +85,13 @@ func Decode(reader io.Reader, values ...interface{}) (err error) {
 			err = binary.Read(reader, byteOrder, &nsec)
 			*v = time.Unix(0, nsec)
 		case **big.Int:
-			var d BigInt
-			err = d.Decode(reader)
-			*v = d.Int
+			var b []byte
+			err = decodeBytes(reader, &b)
+			if err != nil {
+				err = errors.WithMessage(err, "decoding bytes")
+				break
+			}
+			*v = new(big.Int).SetBytes(b)
 		case *[32]byte:
 			_, err = io.ReadFull(reader, v[:])
 		case *[]byte:
