@@ -195,7 +195,7 @@ func (p BaseChannelProposal) Encode(w io.Writer) error {
 // ProposalID returns the identifier of this channel proposal.
 func (p BaseChannelProposal) ProposalID() (propID ProposalID) {
 	hasher := newHasher()
-	if err := perunio.Encode(hasher, p.Base()); err != nil {
+	if err := p.Encode(hasher); err != nil {
 		log.Panicf("proposal ID base encoding: %v", err)
 	}
 
@@ -289,10 +289,7 @@ func (LedgerChannelProposal) Type() wire.Type {
 // ProposalID returns the identifier of this channel proposal request.
 func (p LedgerChannelProposal) ProposalID() (propID ProposalID) {
 	hasher := newHasher()
-	if err := perunio.Encode(hasher,
-		p.Base(),
-		p.Participant,
-		wire.Addresses(p.Peers)); err != nil {
+	if err := p.Encode(hasher); err != nil {
 		log.Panicf("proposal ID nonce encoding: %v", err)
 	}
 
@@ -365,9 +362,7 @@ func NewSubChannelProposal(
 // ProposalID returns the identifier of this channel proposal request.
 func (p SubChannelProposal) ProposalID() (propID ProposalID) {
 	hasher := newHasher()
-	if err := perunio.Encode(hasher,
-		p.Base(),
-		p.Parent); err != nil {
+	if err := p.Encode(hasher); err != nil {
 		log.Panicf("proposal ID nonce encoding: %v", err)
 	}
 
