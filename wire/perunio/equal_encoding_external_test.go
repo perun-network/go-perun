@@ -15,8 +15,10 @@
 package perunio_test
 
 import (
+	"io"
 	"testing"
 
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"perun.network/go-perun/wire/perunio"
 
@@ -26,9 +28,9 @@ import (
 // TestEqualEncoding tests EqualEncoding.
 func TestEqualEncoding(t *testing.T) {
 	rng := polytest.Prng(t)
-	a := make(perunio.ByteSlice, 10)
-	b := make(perunio.ByteSlice, 10)
-	c := make(perunio.ByteSlice, 12)
+	a := make(ByteSlice, 10)
+	b := make(ByteSlice, 10)
+	c := make(ByteSlice, 12)
 
 	rng.Read(a)
 	rng.Read(b)
@@ -68,4 +70,29 @@ func TestEqualEncoding(t *testing.T) {
 		assert.Falsef(t, (err == nil) && tt.shouldErr, "EqualEncoding with %s should return an error but got nil", tt.name)
 		assert.Falsef(t, (err != nil) && !tt.shouldErr, "EqualEncoding with %s should return nil as error but got: %s", tt.name, err)
 	}
+}
+
+// ByteSlice is a serializer byte slice.
+type ByteSlice []byte //TODO remove
+
+// Encode writes len(b) bytes to the stream. Note that the length itself is not
+// written to the stream.
+func (b ByteSlice) Encode(w io.Writer) error {
+	_, err := w.Write(b)
+	return errors.Wrap(err, "failed to write []byte")
+}
+
+// Decode reads a byte slice from the given stream.
+// Decode reads exactly len(b) bytes.
+// This means the caller has to specify how many bytes he wants to read.
+func (b *ByteSlice) Decode(r io.Reader) error {
+	// This is almost the same as io.ReadFull, but it also fails on closed
+	// readers.
+	n, err := r.Read(*b)
+	for n < len(*b) && err == nil {
+		var nn int
+		nn, err = r.Read((*b)[n:])
+		n += nn
+	}
+	return errors.Wrap(err, "failed to read []byte")
 }

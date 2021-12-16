@@ -80,7 +80,6 @@ func TestEncodeDecode(t *testing.T) {
 		longInt,
 		byte32,
 		byteSlice,
-		ByteSlice{5, 6, 8, 3, 4, 5, 6},
 		"perun",
 	}
 
@@ -90,17 +89,7 @@ func TestEncodeDecode(t *testing.T) {
 
 	d := make([]interface{}, len(values))
 	for i, v := range values {
-		if b, ok := v.([]byte); ok {
-			// destination byte slice has to be of correct size
-			e := make([]byte, len(b))
-			d[i] = &e
-		} else if b, ok = v.(ByteSlice); ok {
-			// destination ByteSlice has to be of correct size
-			e := make(ByteSlice, len(b))
-			d[i] = &e
-		} else {
-			d[i] = reflect.New(reflect.TypeOf(v)).Interface()
-		}
+		d[i] = reflect.New(reflect.TypeOf(v)).Interface()
 	}
 
 	a.Nil(Decode(r, d...), "failed to decode values")
