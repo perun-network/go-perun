@@ -88,12 +88,10 @@ func newSetup(t require.TestingT, prng *rand.Rand) *test.Setup {
 	w := ethwallettest.NewTmpWallet()
 
 	addressNotInWallet := ethwallettest.NewRandomAddress(prng)
-	var buff bytes.Buffer
-	err := perunio.Encode(&buff, &addressNotInWallet)
+	addrEncoded, err := addressNotInWallet.MarshalBinary()
 	if err != nil {
 		panic(err)
 	}
-	addrEncoded := buff.Bytes()
 
 	require.NoError(t, err, "decoding valid address should not fail")
 

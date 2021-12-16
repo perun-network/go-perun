@@ -15,7 +15,6 @@
 package channel
 
 import (
-	"bytes"
 	stdio "io"
 	"math/big"
 
@@ -149,14 +148,14 @@ func NewParamsUnsafe(challengeDuration uint64, parts []wallet.Address, app App, 
 func (p *Params) Clone() *Params {
 	clonedParts := make([]wallet.Address, len(p.Parts))
 	for i, v := range p.Parts {
-		var buff bytes.Buffer
-		if err := perunio.Encode(&buff, v); err != nil {
-			log.WithError(err).Panic("Could not encode part")
+		b, err := v.MarshalBinary()
+		if err != nil {
+			log.WithError(err).Panic("Failed to encode address")
 		}
 
 		addr := wallet.NewAddress()
-		if err := perunio.Decode(&buff, addr); err != nil {
-			log.WithError(err).Panic("Could not clone params' addresses")
+		if err := addr.UnmarshalBinary(b); err != nil {
+			log.WithError(err).Panic("Failed to decode address")
 		}
 		clonedParts[i] = addr
 	}

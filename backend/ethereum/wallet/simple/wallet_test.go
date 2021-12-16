@@ -15,7 +15,6 @@
 package simple_test
 
 import (
-	"bytes"
 	"crypto/ecdsa"
 	"math/rand"
 	"testing"
@@ -30,7 +29,6 @@ import (
 	"perun.network/go-perun/backend/ethereum/wallet/simple"
 	ethwallettest "perun.network/go-perun/backend/ethereum/wallet/test"
 	"perun.network/go-perun/wallet/test"
-	"perun.network/go-perun/wire/perunio"
 	pkgtest "polycry.pt/poly-go/test"
 )
 
@@ -103,12 +101,10 @@ func newSetup(t require.TestingT, prng *rand.Rand) (*test.Setup, *simple.Wallet)
 	require.NotNil(t, acc)
 
 	addressNotInWallet := ethwallettest.NewRandomAddress(prng)
-	var buff bytes.Buffer
-	err = perunio.Encode(&buff, &addressNotInWallet)
+	addrEncoded, err := addressNotInWallet.MarshalBinary()
 	if err != nil {
 		panic(err)
 	}
-	addrEncoded := buff.Bytes()
 
 	return &test.Setup{
 		Wallet:          simpleWallet,

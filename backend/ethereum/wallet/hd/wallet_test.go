@@ -15,7 +15,6 @@
 package hd_test
 
 import (
-	"bytes"
 	"math/rand"
 	"testing"
 
@@ -29,7 +28,6 @@ import (
 	"perun.network/go-perun/backend/ethereum/wallet/hd"
 	ethwallettest "perun.network/go-perun/backend/ethereum/wallet/test"
 	"perun.network/go-perun/wallet/test"
-	"perun.network/go-perun/wire/perunio"
 	pkgtest "polycry.pt/poly-go/test"
 )
 
@@ -122,12 +120,10 @@ func newSetup(t require.TestingT, prng *rand.Rand) (*test.Setup, accounts.Wallet
 	require.NotNil(t, acc)
 
 	addressNotInWallet := ethwallettest.NewRandomAddress(prng)
-	var buff bytes.Buffer
-	err = perunio.Encode(&buff, &addressNotInWallet)
+	addrEncoded, err := addressNotInWallet.MarshalBinary()
 	if err != nil {
 		panic(err)
 	}
-	addrEncoded := buff.Bytes()
 
 	return &test.Setup{
 		Wallet:          hdWallet,
