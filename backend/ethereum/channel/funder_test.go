@@ -79,7 +79,9 @@ func newFunderSetup(rng *rand.Rand) (
 		keystore.NewTransactor(*ksWallet, types.NewEIP155Signer(big.NewInt(1337))),
 		TxFinalityDepth,
 	)
-	funder := ethchannel.NewFunder(cb)
+	funder := ethchannel.NewFunder()
+	chainID := ethchannel.MakeChainID(simBackend.Blockchain().Config().ChainID)
+	funder.RegisterLedger(chainID, &cb)
 	assets := make([]ethchannel.Asset, n)
 	depositors := make([]ethchannel.Depositor, n)
 	accs := make([]accounts.Account, n)
@@ -111,7 +113,7 @@ func testFunderOneForAllFunding(t *testing.T, n int) {
 	ct := pkgtest.NewConcurrent(t)
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTxTimeout*time.Duration(n))
 	defer cancel()
-	parts, funders, params, alloc := newNFunders(ctx, t, rng, n)
+	parts, funders, params, alloc, cb := newNFunders(ctx, t, rng, n)
 	agreement := alloc.Balances.Clone()
 	richy := rng.Intn(n) // `richy` will fund for all.
 
@@ -130,7 +132,7 @@ func testFunderOneForAllFunding(t *testing.T, n int) {
 		i := i
 		go ct.StageN("funding", n, func(rt pkgtest.ConcT) {
 			req := channel.NewFundingReq(params, &channel.State{Allocation: *alloc}, channel.Index(i), agreement)
-			diff, err := test.NonceDiff(parts[i], funders[i], func() error {
+			diff, err := test.NonceDiff(parts[i], cb, func() error {
 				return funders[i].Fund(ctx, *req)
 			})
 			require.NoError(rt, err)
@@ -145,7 +147,7 @@ func testFunderOneForAllFunding(t *testing.T, n int) {
 	}
 	ct.Wait("funding")
 	// Check on-chain balances.
-	assert.NoError(t, compareOnChainAlloc(ctx, params, agreement, alloc.Assets, &funders[0].ContractBackend))
+	assert.NoError(t, compareOnChainAlloc(ctx, params, agreement, alloc.Assets, &cb))
 }
 
 func TestFunder_CrossOverFunding(t *testing.T) {
@@ -163,7 +165,7 @@ func testFunderCrossOverFunding(t *testing.T, n int) {
 	defer cancel()
 	rng := pkgtest.Prng(t, n)
 	ct := pkgtest.NewConcurrent(t)
-	parts, funders, params, alloc := newNFunders(ctx, t, rng, n)
+	parts, funders, params, alloc, cb := newNFunders(ctx, t, rng, n)
 
 	// Shuffle the balances.
 	agreement := channeltest.ShuffleBalances(rng, alloc.Balances)
@@ -175,7 +177,7 @@ func testFunderCrossOverFunding(t *testing.T, n int) {
 			req := channel.NewFundingReq(params, &channel.State{Allocation: *alloc}, channel.Index(i), agreement)
 			numTx, err := funders[i].NumTX(*req)
 			require.NoError(t, err)
-			diff, err := test.NonceDiff(parts[i], funder, func() error {
+			diff, err := test.NonceDiff(parts[i], cb, func() error {
 				return funder.Fund(ctx, *req)
 			})
 			require.NoError(rt, err, "funding should succeed")
@@ -185,7 +187,7 @@ func testFunderCrossOverFunding(t *testing.T, n int) {
 
 	ct.Wait("funding")
 	// Check result balances
-	assert.NoError(t, compareOnChainAlloc(ctx, params, agreement, alloc.Assets, &funders[0].ContractBackend))
+	assert.NoError(t, compareOnChainAlloc(ctx, params, agreement, alloc.Assets, &cb))
 }
 
 func TestFunder_ZeroBalance(t *testing.T) {
@@ -202,7 +204,7 @@ func testFunderZeroBalance(t *testing.T, n int) {
 	ct := pkgtest.NewConcurrent(t)
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTxTimeout*time.Duration(n))
 	defer cancel()
-	parts, funders, params, alloc := newNFunders(ctx, t, rng, n)
+	parts, funders, params, alloc, cb := newNFunders(ctx, t, rng, n)
 	agreement := alloc.Balances.Clone()
 
 	for i := range agreement {
@@ -221,7 +223,7 @@ func testFunderZeroBalance(t *testing.T, n int) {
 		go ct.StageN("funding", n, func(rt pkgtest.ConcT) {
 			req := channel.NewFundingReq(params, &channel.State{Allocation: *alloc}, channel.Index(i), agreement)
 
-			diff, err := test.NonceDiff(parts[i], funders[i], func() error {
+			diff, err := test.NonceDiff(parts[i], cb, func() error {
 				return funders[i].Fund(ctx, *req)
 			})
 			require.NoError(rt, err)
@@ -236,14 +238,14 @@ func testFunderZeroBalance(t *testing.T, n int) {
 	}
 	ct.Wait("funding")
 	// Check result balances
-	assert.NoError(t, compareOnChainAlloc(ctx, params, agreement, alloc.Assets, &funders[0].ContractBackend))
+	assert.NoError(t, compareOnChainAlloc(ctx, params, agreement, alloc.Assets, &cb))
 }
 
 func TestFunder_Multiple(t *testing.T) {
 	rng := pkgtest.Prng(t)
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTxTimeout)
 	defer cancel()
-	parts, funders, params, alloc := newNFunders(ctx, t, rng, 1)
+	parts, funders, params, alloc, cb := newNFunders(ctx, t, rng, 1)
 	// Test invalid funding request
 	assert.Panics(t, func() { funders[0].Fund(ctx, channel.FundingReq{}) }, "Funding with invalid funding req should fail") //nolint:errcheck
 	// Test funding without assets
@@ -261,7 +263,7 @@ func TestFunder_Multiple(t *testing.T) {
 				numTx, err = funders[0].NumTX(*req)
 				require.NoError(t, err)
 			}
-			diff, err := test.NonceDiff(parts[0], funders[0], func() error {
+			diff, err := test.NonceDiff(parts[0], cb, func() error {
 				return funders[0].Fund(ctx, *req)
 			})
 			require.NoError(t, err)
@@ -274,7 +276,7 @@ func TestFunder_Multiple(t *testing.T) {
 	// Check result balances
 	ctx, cancel = context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	assert.NoError(t, compareOnChainAlloc(ctx, params, alloc.Balances, alloc.Assets, &funders[0].ContractBackend))
+	assert.NoError(t, compareOnChainAlloc(ctx, params, alloc.Balances, alloc.Assets, &cb))
 }
 
 func TestFunder_PeerTimeout(t *testing.T) {
@@ -293,7 +295,7 @@ func testFundingTimeout(t *testing.T, faultyPeer, n int) {
 	rng := pkgtest.Prng(t, faultyPeer, n)
 	ct := pkgtest.NewConcurrent(t)
 
-	_, funders, params, alloc := newNFunders(ctx, t, rng, n)
+	_, funders, params, alloc, cb := newNFunders(ctx, t, rng, n)
 
 	for i, funder := range funders {
 		sleepTime := time.Millisecond * time.Duration(rng.Int63n(10)+1)
@@ -330,7 +332,7 @@ func testFundingTimeout(t *testing.T, faultyPeer, n int) {
 	// Give each funder `numAssets * numPeers * 200` ms time to fund.
 	time.Sleep(time.Duration(n*len(alloc.Balances)) * 200 * time.Millisecond)
 	// Hackily extract SimulatedBackend from funder
-	sb, ok := funders[0].ContractInterface.(*test.SimulatedBackend)
+	sb, ok := cb.ContractInterface.(*test.SimulatedBackend)
 	require.True(t, ok)
 	// advance block time so that funding fails for non-funders
 	require.NoError(t, sb.AdjustTime(time.Duration(params.ChallengeDuration)*time.Second))
@@ -354,7 +356,7 @@ func testFunderFunding(t *testing.T, n int) {
 	rng := pkgtest.Prng(t, n)
 	ct := pkgtest.NewConcurrent(t)
 
-	_, funders, params, alloc := newNFunders(ctx, t, rng, n)
+	_, funders, params, alloc, cb := newNFunders(ctx, t, rng, n)
 
 	for i, funder := range funders {
 		sleepTime := time.Millisecond * time.Duration(rng.Int63n(10)+1)
@@ -369,7 +371,7 @@ func testFunderFunding(t *testing.T, n int) {
 
 	ct.Wait("funding")
 	// Check result balances
-	assert.NoError(t, compareOnChainAlloc(ctx, params, alloc.Balances, alloc.Assets, &funders[0].ContractBackend))
+	assert.NoError(t, compareOnChainAlloc(ctx, params, alloc.Balances, alloc.Assets, &cb))
 }
 
 func newNFunders(
@@ -382,6 +384,7 @@ func newNFunders(
 	funders []*ethchannel.Funder,
 	params *channel.Params,
 	allocation *channel.Allocation,
+	cb ethchannel.ContractBackend,
 ) {
 	t.Helper()
 	simBackend := test.NewSimulatedBackend()
@@ -394,7 +397,7 @@ func newNFunders(
 	simBackend.FundAddress(ctx, deployAccount.Address)
 	tokenAcc := &ksWallet.NewRandomAccount(rng).(*keystore.Account).Account
 	simBackend.FundAddress(ctx, tokenAcc.Address)
-	cb := ethchannel.NewContractBackend(
+	cb = ethchannel.NewContractBackend(
 		simBackend,
 		keystore.NewTransactor(*ksWallet, types.NewEIP155Signer(big.NewInt(1337))),
 		TxFinalityDepth,
@@ -424,7 +427,9 @@ func newNFunders(
 		err = fundERC20(ctx, cb, *tokenAcc, ethwallet.AsEthAddr(parts[i]), token, *asset2)
 		require.NoError(t, err)
 
-		funders[i] = ethchannel.NewFunder(cb)
+		funders[i] = ethchannel.NewFunder()
+		chainID := ethchannel.MakeChainID(simBackend.Blockchain().Config().ChainID)
+		funders[i].RegisterLedger(chainID, &cb)
 		require.True(t, funders[i].RegisterAsset(*asset1, ethchannel.NewETHDepositor(), acc))
 		require.True(t, funders[i].RegisterAsset(*asset2, ethchannel.NewERC20Depositor(token), acc))
 	}
@@ -445,7 +450,7 @@ func newNFunders(
 			ethchannel.NewAssetFromAddress(assetAddr2),
 		),
 	)
-	return parts, funders, params, allocation
+	return parts, funders, params, allocation, cb
 }
 
 // fundERC20 funds `to` with ERC20 tokens from account `from`.

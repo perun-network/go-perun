@@ -17,6 +17,7 @@ package channel
 import (
 	stdio "io"
 	"math/big"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -213,4 +214,12 @@ func (p *Params) Decode(r stdio.Reader) error {
 	*p = *_p
 
 	return nil
+}
+
+func (p *Params) ChallengeDurationAsDuration() time.Duration {
+	d := int64(p.ChallengeDuration)
+	if d < 0 {
+		panic("overflow")
+	}
+	return time.Duration(d) * time.Second
 }

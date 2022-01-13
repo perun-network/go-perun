@@ -15,8 +15,10 @@
 package channel
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
+	"math/big"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -29,16 +31,74 @@ import (
 	cherrors "perun.network/go-perun/backend/ethereum/channel/errors"
 	"perun.network/go-perun/backend/ethereum/wallet"
 	"perun.network/go-perun/channel"
+	"perun.network/go-perun/wire/perunio"
 )
 
-// Asset is an Ethereum asset.
-type Asset struct {
-	wallet.Address
+type (
+	ChainID struct {
+		*big.Int
+	}
+
+	ChainIDMapKey string
+)
+
+func MakeChainID(id *big.Int) ChainID {
+	if id.Sign() < 0 {
+		panic("must not be smaller than zero")
+	}
+	return ChainID{id}
+}
+
+func (id ChainID) MarshalBinary() ([]byte, error) {
+	return id.Bytes(), nil
+}
+
+func (id *ChainID) UnmarshalBinary(d []byte) error {
+	id.Int = new(big.Int).SetBytes(d)
+	return nil
+}
+
+func (id ChainID) MapKey() ChainIDMapKey {
+	return ChainIDMapKey(id.String())
+}
+
+type (
+
+	// Asset is an Ethereum asset.
+	Asset struct {
+		wallet.Address
+		chainID ChainID
+	}
+
+	AssetMapKey string
+)
+
+func (a Asset) MapKey() AssetMapKey {
+	d, err := a.MarshalBinary()
+	if err != nil {
+		panic(err)
+	}
+
+	return AssetMapKey(string(d))
+}
+
+func (a Asset) MarshalBinary() ([]byte, error) {
+	var buf bytes.Buffer
+	err := perunio.Encode(&buf, a.Address, a.chainID)
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+func (a *Asset) UnmarshalBinary(data []byte) error {
+	buf := bytes.NewBuffer(data)
+	return perunio.Decode(buf, &a.Address, &a.chainID)
 }
 
 // NewAssetFromAddress creates a new asset from an Ethereum address.
-func NewAssetFromAddress(a common.Address) *Asset {
-	return &Asset{*wallet.AsWalletAddr(a)}
+func NewAssetFromAddress(chainID ChainID, a common.Address) *Asset {
+	return &Asset{*wallet.AsWalletAddr(a), chainID}
 }
 
 // EthAddress returns the Ethereum address representation of the asset.

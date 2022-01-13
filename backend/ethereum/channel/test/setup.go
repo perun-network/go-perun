@@ -125,7 +125,9 @@ func NewSetup(t *testing.T, rng *rand.Rand, n int, blockInterval time.Duration, 
 			keystore.NewTransactor(*ksWallet, signer),
 			txFinalityDepth,
 		)
-		s.Funders[i] = ethchannel.NewFunder(cb)
+		s.Funders[i] = ethchannel.NewFunder()
+		chainID := ethchannel.MakeChainID(s.SimBackend.Blockchain().Config().ChainID)
+		s.Funders[i].RegisterLedger(chainID, &cb)
 		require.True(t, s.Funders[i].RegisterAsset(*s.Asset, ethchannel.NewETHDepositor(), s.Accs[i].Account))
 		s.Adjs[i] = NewSimAdjudicator(cb, adjudicator, common.Address(*s.Recvs[i]), s.Accs[i].Account)
 	}
