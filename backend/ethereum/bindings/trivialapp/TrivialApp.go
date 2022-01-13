@@ -4,6 +4,7 @@
 package trivialapp
 
 import (
+	"errors"
 	"math/big"
 	"strings"
 
@@ -17,6 +18,7 @@ import (
 
 // Reference imports to suppress errors if they are not otherwise used.
 var (
+	_ = errors.New
 	_ = big.NewInt
 	_ = strings.NewReader
 	_ = ethereum.NotFound
@@ -28,9 +30,15 @@ var (
 
 // ChannelAllocation is an auto generated low-level Go binding around an user-defined struct.
 type ChannelAllocation struct {
-	Assets   []common.Address
+	Assets   []ChannelAsset
 	Balances [][]*big.Int
 	Locked   []ChannelSubAlloc
+}
+
+// ChannelAsset is an auto generated low-level Go binding around an user-defined struct.
+type ChannelAsset struct {
+	ChainID *big.Int
+	Holder  common.Address
 }
 
 // ChannelParams is an auto generated low-level Go binding around an user-defined struct.
@@ -59,13 +67,21 @@ type ChannelSubAlloc struct {
 	IndexMap []uint16
 }
 
-// AppABI is the input ABI used to generate the binding from.
-const AppABI = "[{\"inputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"challengeDuration\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"nonce\",\"type\":\"uint256\"},{\"internalType\":\"address[]\",\"name\":\"participants\",\"type\":\"address[]\"},{\"internalType\":\"address\",\"name\":\"app\",\"type\":\"address\"},{\"internalType\":\"bool\",\"name\":\"ledgerChannel\",\"type\":\"bool\"},{\"internalType\":\"bool\",\"name\":\"virtualChannel\",\"type\":\"bool\"}],\"internalType\":\"structChannel.Params\",\"name\":\"params\",\"type\":\"tuple\"},{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"channelID\",\"type\":\"bytes32\"},{\"internalType\":\"uint64\",\"name\":\"version\",\"type\":\"uint64\"},{\"components\":[{\"internalType\":\"address[]\",\"name\":\"assets\",\"type\":\"address[]\"},{\"internalType\":\"uint256[][]\",\"name\":\"balances\",\"type\":\"uint256[][]\"},{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"ID\",\"type\":\"bytes32\"},{\"internalType\":\"uint256[]\",\"name\":\"balances\",\"type\":\"uint256[]\"},{\"internalType\":\"uint16[]\",\"name\":\"indexMap\",\"type\":\"uint16[]\"}],\"internalType\":\"structChannel.SubAlloc[]\",\"name\":\"locked\",\"type\":\"tuple[]\"}],\"internalType\":\"structChannel.Allocation\",\"name\":\"outcome\",\"type\":\"tuple\"},{\"internalType\":\"bytes\",\"name\":\"appData\",\"type\":\"bytes\"},{\"internalType\":\"bool\",\"name\":\"isFinal\",\"type\":\"bool\"}],\"internalType\":\"structChannel.State\",\"name\":\"from\",\"type\":\"tuple\"},{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"channelID\",\"type\":\"bytes32\"},{\"internalType\":\"uint64\",\"name\":\"version\",\"type\":\"uint64\"},{\"components\":[{\"internalType\":\"address[]\",\"name\":\"assets\",\"type\":\"address[]\"},{\"internalType\":\"uint256[][]\",\"name\":\"balances\",\"type\":\"uint256[][]\"},{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"ID\",\"type\":\"bytes32\"},{\"internalType\":\"uint256[]\",\"name\":\"balances\",\"type\":\"uint256[]\"},{\"internalType\":\"uint16[]\",\"name\":\"indexMap\",\"type\":\"uint16[]\"}],\"internalType\":\"structChannel.SubAlloc[]\",\"name\":\"locked\",\"type\":\"tuple[]\"}],\"internalType\":\"structChannel.Allocation\",\"name\":\"outcome\",\"type\":\"tuple\"},{\"internalType\":\"bytes\",\"name\":\"appData\",\"type\":\"bytes\"},{\"internalType\":\"bool\",\"name\":\"isFinal\",\"type\":\"bool\"}],\"internalType\":\"structChannel.State\",\"name\":\"to\",\"type\":\"tuple\"},{\"internalType\":\"uint256\",\"name\":\"actorIdx\",\"type\":\"uint256\"}],\"name\":\"validTransition\",\"outputs\":[],\"stateMutability\":\"pure\",\"type\":\"function\"}]"
-
-// AppFuncSigs maps the 4-byte function signature to its string representation.
-var AppFuncSigs = map[string]string{
-	"0d1feb4f": "validTransition((uint256,uint256,address[],address,bool,bool),(bytes32,uint64,(address[],uint256[][],(bytes32,uint256[],uint16[])[]),bytes,bool),(bytes32,uint64,(address[],uint256[][],(bytes32,uint256[],uint16[])[]),bytes,bool),uint256)",
+// AppMetaData contains all meta data concerning the App contract.
+var AppMetaData = &bind.MetaData{
+	ABI: "[{\"inputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"challengeDuration\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"nonce\",\"type\":\"uint256\"},{\"internalType\":\"address[]\",\"name\":\"participants\",\"type\":\"address[]\"},{\"internalType\":\"address\",\"name\":\"app\",\"type\":\"address\"},{\"internalType\":\"bool\",\"name\":\"ledgerChannel\",\"type\":\"bool\"},{\"internalType\":\"bool\",\"name\":\"virtualChannel\",\"type\":\"bool\"}],\"internalType\":\"structChannel.Params\",\"name\":\"params\",\"type\":\"tuple\"},{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"channelID\",\"type\":\"bytes32\"},{\"internalType\":\"uint64\",\"name\":\"version\",\"type\":\"uint64\"},{\"components\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"chainID\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"holder\",\"type\":\"address\"}],\"internalType\":\"structChannel.Asset[]\",\"name\":\"assets\",\"type\":\"tuple[]\"},{\"internalType\":\"uint256[][]\",\"name\":\"balances\",\"type\":\"uint256[][]\"},{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"ID\",\"type\":\"bytes32\"},{\"internalType\":\"uint256[]\",\"name\":\"balances\",\"type\":\"uint256[]\"},{\"internalType\":\"uint16[]\",\"name\":\"indexMap\",\"type\":\"uint16[]\"}],\"internalType\":\"structChannel.SubAlloc[]\",\"name\":\"locked\",\"type\":\"tuple[]\"}],\"internalType\":\"structChannel.Allocation\",\"name\":\"outcome\",\"type\":\"tuple\"},{\"internalType\":\"bytes\",\"name\":\"appData\",\"type\":\"bytes\"},{\"internalType\":\"bool\",\"name\":\"isFinal\",\"type\":\"bool\"}],\"internalType\":\"structChannel.State\",\"name\":\"from\",\"type\":\"tuple\"},{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"channelID\",\"type\":\"bytes32\"},{\"internalType\":\"uint64\",\"name\":\"version\",\"type\":\"uint64\"},{\"components\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"chainID\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"holder\",\"type\":\"address\"}],\"internalType\":\"structChannel.Asset[]\",\"name\":\"assets\",\"type\":\"tuple[]\"},{\"internalType\":\"uint256[][]\",\"name\":\"balances\",\"type\":\"uint256[][]\"},{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"ID\",\"type\":\"bytes32\"},{\"internalType\":\"uint256[]\",\"name\":\"balances\",\"type\":\"uint256[]\"},{\"internalType\":\"uint16[]\",\"name\":\"indexMap\",\"type\":\"uint16[]\"}],\"internalType\":\"structChannel.SubAlloc[]\",\"name\":\"locked\",\"type\":\"tuple[]\"}],\"internalType\":\"structChannel.Allocation\",\"name\":\"outcome\",\"type\":\"tuple\"},{\"internalType\":\"bytes\",\"name\":\"appData\",\"type\":\"bytes\"},{\"internalType\":\"bool\",\"name\":\"isFinal\",\"type\":\"bool\"}],\"internalType\":\"structChannel.State\",\"name\":\"to\",\"type\":\"tuple\"},{\"internalType\":\"uint256\",\"name\":\"actorIdx\",\"type\":\"uint256\"}],\"name\":\"validTransition\",\"outputs\":[],\"stateMutability\":\"pure\",\"type\":\"function\"}]",
+	Sigs: map[string]string{
+		"6d7eba0d": "validTransition((uint256,uint256,address[],address,bool,bool),(bytes32,uint64,((uint256,address)[],uint256[][],(bytes32,uint256[],uint16[])[]),bytes,bool),(bytes32,uint64,((uint256,address)[],uint256[][],(bytes32,uint256[],uint16[])[]),bytes,bool),uint256)",
+	},
 }
+
+// AppABI is the input ABI used to generate the binding from.
+// Deprecated: Use AppMetaData.ABI instead.
+var AppABI = AppMetaData.ABI
+
+// Deprecated: Use AppMetaData.Sigs instead.
+// AppFuncSigs maps the 4-byte function signature to its string representation.
+var AppFuncSigs = AppMetaData.Sigs
 
 // App is an auto generated Go binding around an Ethereum contract.
 type App struct {
@@ -209,9 +225,9 @@ func (_App *AppTransactorRaw) Transact(opts *bind.TransactOpts, method string, p
 	return _App.Contract.contract.Transact(opts, method, params...)
 }
 
-// ValidTransition is a free data retrieval call binding the contract method 0x0d1feb4f.
+// ValidTransition is a free data retrieval call binding the contract method 0x6d7eba0d.
 //
-// Solidity: function validTransition((uint256,uint256,address[],address,bool,bool) params, (bytes32,uint64,(address[],uint256[][],(bytes32,uint256[],uint16[])[]),bytes,bool) from, (bytes32,uint64,(address[],uint256[][],(bytes32,uint256[],uint16[])[]),bytes,bool) to, uint256 actorIdx) pure returns()
+// Solidity: function validTransition((uint256,uint256,address[],address,bool,bool) params, (bytes32,uint64,((uint256,address)[],uint256[][],(bytes32,uint256[],uint16[])[]),bytes,bool) from, (bytes32,uint64,((uint256,address)[],uint256[][],(bytes32,uint256[],uint16[])[]),bytes,bool) to, uint256 actorIdx) pure returns()
 func (_App *AppCaller) ValidTransition(opts *bind.CallOpts, params ChannelParams, from ChannelState, to ChannelState, actorIdx *big.Int) error {
 	var out []interface{}
 	err := _App.contract.Call(opts, &out, "validTransition", params, from, to, actorIdx)
@@ -224,34 +240,45 @@ func (_App *AppCaller) ValidTransition(opts *bind.CallOpts, params ChannelParams
 
 }
 
-// ValidTransition is a free data retrieval call binding the contract method 0x0d1feb4f.
+// ValidTransition is a free data retrieval call binding the contract method 0x6d7eba0d.
 //
-// Solidity: function validTransition((uint256,uint256,address[],address,bool,bool) params, (bytes32,uint64,(address[],uint256[][],(bytes32,uint256[],uint16[])[]),bytes,bool) from, (bytes32,uint64,(address[],uint256[][],(bytes32,uint256[],uint16[])[]),bytes,bool) to, uint256 actorIdx) pure returns()
+// Solidity: function validTransition((uint256,uint256,address[],address,bool,bool) params, (bytes32,uint64,((uint256,address)[],uint256[][],(bytes32,uint256[],uint16[])[]),bytes,bool) from, (bytes32,uint64,((uint256,address)[],uint256[][],(bytes32,uint256[],uint16[])[]),bytes,bool) to, uint256 actorIdx) pure returns()
 func (_App *AppSession) ValidTransition(params ChannelParams, from ChannelState, to ChannelState, actorIdx *big.Int) error {
 	return _App.Contract.ValidTransition(&_App.CallOpts, params, from, to, actorIdx)
 }
 
-// ValidTransition is a free data retrieval call binding the contract method 0x0d1feb4f.
+// ValidTransition is a free data retrieval call binding the contract method 0x6d7eba0d.
 //
-// Solidity: function validTransition((uint256,uint256,address[],address,bool,bool) params, (bytes32,uint64,(address[],uint256[][],(bytes32,uint256[],uint16[])[]),bytes,bool) from, (bytes32,uint64,(address[],uint256[][],(bytes32,uint256[],uint16[])[]),bytes,bool) to, uint256 actorIdx) pure returns()
+// Solidity: function validTransition((uint256,uint256,address[],address,bool,bool) params, (bytes32,uint64,((uint256,address)[],uint256[][],(bytes32,uint256[],uint16[])[]),bytes,bool) from, (bytes32,uint64,((uint256,address)[],uint256[][],(bytes32,uint256[],uint16[])[]),bytes,bool) to, uint256 actorIdx) pure returns()
 func (_App *AppCallerSession) ValidTransition(params ChannelParams, from ChannelState, to ChannelState, actorIdx *big.Int) error {
 	return _App.Contract.ValidTransition(&_App.CallOpts, params, from, to, actorIdx)
 }
 
+// ArrayMetaData contains all meta data concerning the Array contract.
+var ArrayMetaData = &bind.MetaData{
+	ABI: "[]",
+	Bin: "0x60566037600b82828239805160001a607314602a57634e487b7160e01b600052600060045260246000fd5b30600052607381538281f3fe73000000000000000000000000000000000000000030146080604052600080fdfea2646970667358221220c945fdd0661a88834e318483f8daa830346af87fcd33df99b23b996b9eb8237a64736f6c634300080b0033",
+}
+
 // ArrayABI is the input ABI used to generate the binding from.
-const ArrayABI = "[]"
+// Deprecated: Use ArrayMetaData.ABI instead.
+var ArrayABI = ArrayMetaData.ABI
 
 // ArrayBin is the compiled bytecode used for deploying new contracts.
-var ArrayBin = "0x60566023600b82828239805160001a607314601657fe5b30600052607381538281f3fe73000000000000000000000000000000000000000030146080604052600080fdfea2646970667358221220f03ababb0613234c3eb5710fd53ebb146b5257611ec7cb2eec2258d682ba631764736f6c63430007040033"
+// Deprecated: Use ArrayMetaData.Bin instead.
+var ArrayBin = ArrayMetaData.Bin
 
 // DeployArray deploys a new Ethereum contract, binding an instance of Array to it.
 func DeployArray(auth *bind.TransactOpts, backend bind.ContractBackend) (common.Address, *types.Transaction, *Array, error) {
-	parsed, err := abi.JSON(strings.NewReader(ArrayABI))
+	parsed, err := ArrayMetaData.GetAbi()
 	if err != nil {
 		return common.Address{}, nil, nil, err
 	}
+	if parsed == nil {
+		return common.Address{}, nil, nil, errors.New("GetABI returned nil")
+	}
 
-	address, tx, contract, err := bind.DeployContract(auth, parsed, common.FromHex(ArrayBin), backend)
+	address, tx, contract, err := bind.DeployContract(auth, *parsed, common.FromHex(ArrayBin), backend)
 	if err != nil {
 		return common.Address{}, nil, nil, err
 	}
@@ -400,20 +427,31 @@ func (_Array *ArrayTransactorRaw) Transact(opts *bind.TransactOpts, method strin
 	return _Array.Contract.contract.Transact(opts, method, params...)
 }
 
+// ChannelMetaData contains all meta data concerning the Channel contract.
+var ChannelMetaData = &bind.MetaData{
+	ABI: "[]",
+	Bin: "0x60566037600b82828239805160001a607314602a57634e487b7160e01b600052600060045260246000fd5b30600052607381538281f3fe73000000000000000000000000000000000000000030146080604052600080fdfea26469706673582212204ef3f8427a501743f499505e3115e772bffc8a42d51e131fe8e44da272f433be64736f6c634300080b0033",
+}
+
 // ChannelABI is the input ABI used to generate the binding from.
-const ChannelABI = "[]"
+// Deprecated: Use ChannelMetaData.ABI instead.
+var ChannelABI = ChannelMetaData.ABI
 
 // ChannelBin is the compiled bytecode used for deploying new contracts.
-var ChannelBin = "0x60566023600b82828239805160001a607314601657fe5b30600052607381538281f3fe73000000000000000000000000000000000000000030146080604052600080fdfea264697066735822122092cdd1cee89646209ed671e47b521f86313d39ebb86e786ab2cef1340b48353764736f6c63430007040033"
+// Deprecated: Use ChannelMetaData.Bin instead.
+var ChannelBin = ChannelMetaData.Bin
 
 // DeployChannel deploys a new Ethereum contract, binding an instance of Channel to it.
 func DeployChannel(auth *bind.TransactOpts, backend bind.ContractBackend) (common.Address, *types.Transaction, *Channel, error) {
-	parsed, err := abi.JSON(strings.NewReader(ChannelABI))
+	parsed, err := ChannelMetaData.GetAbi()
 	if err != nil {
 		return common.Address{}, nil, nil, err
 	}
+	if parsed == nil {
+		return common.Address{}, nil, nil, errors.New("GetABI returned nil")
+	}
 
-	address, tx, contract, err := bind.DeployContract(auth, parsed, common.FromHex(ChannelBin), backend)
+	address, tx, contract, err := bind.DeployContract(auth, *parsed, common.FromHex(ChannelBin), backend)
 	if err != nil {
 		return common.Address{}, nil, nil, err
 	}
@@ -562,20 +600,31 @@ func (_Channel *ChannelTransactorRaw) Transact(opts *bind.TransactOpts, method s
 	return _Channel.Contract.contract.Transact(opts, method, params...)
 }
 
+// ECDSAMetaData contains all meta data concerning the ECDSA contract.
+var ECDSAMetaData = &bind.MetaData{
+	ABI: "[]",
+	Bin: "0x60566037600b82828239805160001a607314602a57634e487b7160e01b600052600060045260246000fd5b30600052607381538281f3fe73000000000000000000000000000000000000000030146080604052600080fdfea2646970667358221220a69666c7e3f74348fbe39c43885ceef50e81d2bde3c1165f3204eb04a58f43fc64736f6c634300080b0033",
+}
+
 // ECDSAABI is the input ABI used to generate the binding from.
-const ECDSAABI = "[]"
+// Deprecated: Use ECDSAMetaData.ABI instead.
+var ECDSAABI = ECDSAMetaData.ABI
 
 // ECDSABin is the compiled bytecode used for deploying new contracts.
-var ECDSABin = "0x60566023600b82828239805160001a607314601657fe5b30600052607381538281f3fe73000000000000000000000000000000000000000030146080604052600080fdfea2646970667358221220a2e519b4a0a3509f02bba1abcf848979252df4c37ba062299b13fdabec46878464736f6c63430007040033"
+// Deprecated: Use ECDSAMetaData.Bin instead.
+var ECDSABin = ECDSAMetaData.Bin
 
 // DeployECDSA deploys a new Ethereum contract, binding an instance of ECDSA to it.
 func DeployECDSA(auth *bind.TransactOpts, backend bind.ContractBackend) (common.Address, *types.Transaction, *ECDSA, error) {
-	parsed, err := abi.JSON(strings.NewReader(ECDSAABI))
+	parsed, err := ECDSAMetaData.GetAbi()
 	if err != nil {
 		return common.Address{}, nil, nil, err
 	}
+	if parsed == nil {
+		return common.Address{}, nil, nil, errors.New("GetABI returned nil")
+	}
 
-	address, tx, contract, err := bind.DeployContract(auth, parsed, common.FromHex(ECDSABin), backend)
+	address, tx, contract, err := bind.DeployContract(auth, *parsed, common.FromHex(ECDSABin), backend)
 	if err != nil {
 		return common.Address{}, nil, nil, err
 	}
@@ -724,20 +773,31 @@ func (_ECDSA *ECDSATransactorRaw) Transact(opts *bind.TransactOpts, method strin
 	return _ECDSA.Contract.contract.Transact(opts, method, params...)
 }
 
+// SafeMathMetaData contains all meta data concerning the SafeMath contract.
+var SafeMathMetaData = &bind.MetaData{
+	ABI: "[]",
+	Bin: "0x60566037600b82828239805160001a607314602a57634e487b7160e01b600052600060045260246000fd5b30600052607381538281f3fe73000000000000000000000000000000000000000030146080604052600080fdfea2646970667358221220471e1d919abae632f18d0e0968e431339e755a0b535af09ca98eee7e12ba461264736f6c634300080b0033",
+}
+
 // SafeMathABI is the input ABI used to generate the binding from.
-const SafeMathABI = "[]"
+// Deprecated: Use SafeMathMetaData.ABI instead.
+var SafeMathABI = SafeMathMetaData.ABI
 
 // SafeMathBin is the compiled bytecode used for deploying new contracts.
-var SafeMathBin = "0x60566023600b82828239805160001a607314601657fe5b30600052607381538281f3fe73000000000000000000000000000000000000000030146080604052600080fdfea26469706673582212209d2110f8008a32668165aee96d39b9a3b210868f452685996027830739a87e3064736f6c63430007040033"
+// Deprecated: Use SafeMathMetaData.Bin instead.
+var SafeMathBin = SafeMathMetaData.Bin
 
 // DeploySafeMath deploys a new Ethereum contract, binding an instance of SafeMath to it.
 func DeploySafeMath(auth *bind.TransactOpts, backend bind.ContractBackend) (common.Address, *types.Transaction, *SafeMath, error) {
-	parsed, err := abi.JSON(strings.NewReader(SafeMathABI))
+	parsed, err := SafeMathMetaData.GetAbi()
 	if err != nil {
 		return common.Address{}, nil, nil, err
 	}
+	if parsed == nil {
+		return common.Address{}, nil, nil, errors.New("GetABI returned nil")
+	}
 
-	address, tx, contract, err := bind.DeployContract(auth, parsed, common.FromHex(SafeMathBin), backend)
+	address, tx, contract, err := bind.DeployContract(auth, *parsed, common.FromHex(SafeMathBin), backend)
 	if err != nil {
 		return common.Address{}, nil, nil, err
 	}
@@ -886,20 +946,31 @@ func (_SafeMath *SafeMathTransactorRaw) Transact(opts *bind.TransactOpts, method
 	return _SafeMath.Contract.contract.Transact(opts, method, params...)
 }
 
+// SigMetaData contains all meta data concerning the Sig contract.
+var SigMetaData = &bind.MetaData{
+	ABI: "[]",
+	Bin: "0x60566037600b82828239805160001a607314602a57634e487b7160e01b600052600060045260246000fd5b30600052607381538281f3fe73000000000000000000000000000000000000000030146080604052600080fdfea26469706673582212203dc81af3b98df98c0aa095b8ed7e3a0ad7b2dd5c255627887b57fb6cddc2a31b64736f6c634300080b0033",
+}
+
 // SigABI is the input ABI used to generate the binding from.
-const SigABI = "[]"
+// Deprecated: Use SigMetaData.ABI instead.
+var SigABI = SigMetaData.ABI
 
 // SigBin is the compiled bytecode used for deploying new contracts.
-var SigBin = "0x60566023600b82828239805160001a607314601657fe5b30600052607381538281f3fe73000000000000000000000000000000000000000030146080604052600080fdfea2646970667358221220c3751b740d506c41c776ad3c92ca113b46a314ff1f98b52d4b23f32eaccf354664736f6c63430007040033"
+// Deprecated: Use SigMetaData.Bin instead.
+var SigBin = SigMetaData.Bin
 
 // DeploySig deploys a new Ethereum contract, binding an instance of Sig to it.
 func DeploySig(auth *bind.TransactOpts, backend bind.ContractBackend) (common.Address, *types.Transaction, *Sig, error) {
-	parsed, err := abi.JSON(strings.NewReader(SigABI))
+	parsed, err := SigMetaData.GetAbi()
 	if err != nil {
 		return common.Address{}, nil, nil, err
 	}
+	if parsed == nil {
+		return common.Address{}, nil, nil, errors.New("GetABI returned nil")
+	}
 
-	address, tx, contract, err := bind.DeployContract(auth, parsed, common.FromHex(SigBin), backend)
+	address, tx, contract, err := bind.DeployContract(auth, *parsed, common.FromHex(SigBin), backend)
 	if err != nil {
 		return common.Address{}, nil, nil, err
 	}
@@ -1048,25 +1119,211 @@ func (_Sig *SigTransactorRaw) Transact(opts *bind.TransactOpts, method string, p
 	return _Sig.Contract.contract.Transact(opts, method, params...)
 }
 
-// TrivialAppABI is the input ABI used to generate the binding from.
-const TrivialAppABI = "[{\"inputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"challengeDuration\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"nonce\",\"type\":\"uint256\"},{\"internalType\":\"address[]\",\"name\":\"participants\",\"type\":\"address[]\"},{\"internalType\":\"address\",\"name\":\"app\",\"type\":\"address\"},{\"internalType\":\"bool\",\"name\":\"ledgerChannel\",\"type\":\"bool\"},{\"internalType\":\"bool\",\"name\":\"virtualChannel\",\"type\":\"bool\"}],\"internalType\":\"structChannel.Params\",\"name\":\"params\",\"type\":\"tuple\"},{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"channelID\",\"type\":\"bytes32\"},{\"internalType\":\"uint64\",\"name\":\"version\",\"type\":\"uint64\"},{\"components\":[{\"internalType\":\"address[]\",\"name\":\"assets\",\"type\":\"address[]\"},{\"internalType\":\"uint256[][]\",\"name\":\"balances\",\"type\":\"uint256[][]\"},{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"ID\",\"type\":\"bytes32\"},{\"internalType\":\"uint256[]\",\"name\":\"balances\",\"type\":\"uint256[]\"},{\"internalType\":\"uint16[]\",\"name\":\"indexMap\",\"type\":\"uint16[]\"}],\"internalType\":\"structChannel.SubAlloc[]\",\"name\":\"locked\",\"type\":\"tuple[]\"}],\"internalType\":\"structChannel.Allocation\",\"name\":\"outcome\",\"type\":\"tuple\"},{\"internalType\":\"bytes\",\"name\":\"appData\",\"type\":\"bytes\"},{\"internalType\":\"bool\",\"name\":\"isFinal\",\"type\":\"bool\"}],\"internalType\":\"structChannel.State\",\"name\":\"from\",\"type\":\"tuple\"},{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"channelID\",\"type\":\"bytes32\"},{\"internalType\":\"uint64\",\"name\":\"version\",\"type\":\"uint64\"},{\"components\":[{\"internalType\":\"address[]\",\"name\":\"assets\",\"type\":\"address[]\"},{\"internalType\":\"uint256[][]\",\"name\":\"balances\",\"type\":\"uint256[][]\"},{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"ID\",\"type\":\"bytes32\"},{\"internalType\":\"uint256[]\",\"name\":\"balances\",\"type\":\"uint256[]\"},{\"internalType\":\"uint16[]\",\"name\":\"indexMap\",\"type\":\"uint16[]\"}],\"internalType\":\"structChannel.SubAlloc[]\",\"name\":\"locked\",\"type\":\"tuple[]\"}],\"internalType\":\"structChannel.Allocation\",\"name\":\"outcome\",\"type\":\"tuple\"},{\"internalType\":\"bytes\",\"name\":\"appData\",\"type\":\"bytes\"},{\"internalType\":\"bool\",\"name\":\"isFinal\",\"type\":\"bool\"}],\"internalType\":\"structChannel.State\",\"name\":\"to\",\"type\":\"tuple\"},{\"internalType\":\"uint256\",\"name\":\"actorIdx\",\"type\":\"uint256\"}],\"name\":\"validTransition\",\"outputs\":[],\"stateMutability\":\"pure\",\"type\":\"function\"}]"
-
-// TrivialAppFuncSigs maps the 4-byte function signature to its string representation.
-var TrivialAppFuncSigs = map[string]string{
-	"0d1feb4f": "validTransition((uint256,uint256,address[],address,bool,bool),(bytes32,uint64,(address[],uint256[][],(bytes32,uint256[],uint16[])[]),bytes,bool),(bytes32,uint64,(address[],uint256[][],(bytes32,uint256[],uint16[])[]),bytes,bool),uint256)",
+// StringsMetaData contains all meta data concerning the Strings contract.
+var StringsMetaData = &bind.MetaData{
+	ABI: "[]",
+	Bin: "0x60566037600b82828239805160001a607314602a57634e487b7160e01b600052600060045260246000fd5b30600052607381538281f3fe73000000000000000000000000000000000000000030146080604052600080fdfea2646970667358221220db17f2024bbfd2f1f26302f02fc41013ace7fe2618113cb0b9aeca90071412f364736f6c634300080b0033",
 }
 
-// TrivialAppBin is the compiled bytecode used for deploying new contracts.
-var TrivialAppBin = "0x608060405234801561001057600080fd5b5061011a806100206000396000f3fe6080604052348015600f57600080fd5b506004361060285760003560e01c80630d1feb4f14602d575b600080fd5b603c6038366004605a565b603e565b005b50505050565b600060a082840312156054578081fd5b50919050565b60008060008060808587031215606e578384fd5b843567ffffffffffffffff808211156084578586fd5b9086019060c082890312156096578586fd5b9094506020860135908082111560aa578485fd5b60b4888389016044565b9450604087013591508082111560c8578384fd5b5060d3878288016044565b94979396509394606001359350505056fea264697066735822122077920077a5c82b826c4262e4501c371412aed951c27f8b2828b18ca00ad9792764736f6c63430007040033"
+// StringsABI is the input ABI used to generate the binding from.
+// Deprecated: Use StringsMetaData.ABI instead.
+var StringsABI = StringsMetaData.ABI
 
-// DeployTrivialApp deploys a new Ethereum contract, binding an instance of TrivialApp to it.
-func DeployTrivialApp(auth *bind.TransactOpts, backend bind.ContractBackend) (common.Address, *types.Transaction, *TrivialApp, error) {
-	parsed, err := abi.JSON(strings.NewReader(TrivialAppABI))
+// StringsBin is the compiled bytecode used for deploying new contracts.
+// Deprecated: Use StringsMetaData.Bin instead.
+var StringsBin = StringsMetaData.Bin
+
+// DeployStrings deploys a new Ethereum contract, binding an instance of Strings to it.
+func DeployStrings(auth *bind.TransactOpts, backend bind.ContractBackend) (common.Address, *types.Transaction, *Strings, error) {
+	parsed, err := StringsMetaData.GetAbi()
 	if err != nil {
 		return common.Address{}, nil, nil, err
 	}
+	if parsed == nil {
+		return common.Address{}, nil, nil, errors.New("GetABI returned nil")
+	}
 
-	address, tx, contract, err := bind.DeployContract(auth, parsed, common.FromHex(TrivialAppBin), backend)
+	address, tx, contract, err := bind.DeployContract(auth, *parsed, common.FromHex(StringsBin), backend)
+	if err != nil {
+		return common.Address{}, nil, nil, err
+	}
+	return address, tx, &Strings{StringsCaller: StringsCaller{contract: contract}, StringsTransactor: StringsTransactor{contract: contract}, StringsFilterer: StringsFilterer{contract: contract}}, nil
+}
+
+// Strings is an auto generated Go binding around an Ethereum contract.
+type Strings struct {
+	StringsCaller     // Read-only binding to the contract
+	StringsTransactor // Write-only binding to the contract
+	StringsFilterer   // Log filterer for contract events
+}
+
+// StringsCaller is an auto generated read-only Go binding around an Ethereum contract.
+type StringsCaller struct {
+	contract *bind.BoundContract // Generic contract wrapper for the low level calls
+}
+
+// StringsTransactor is an auto generated write-only Go binding around an Ethereum contract.
+type StringsTransactor struct {
+	contract *bind.BoundContract // Generic contract wrapper for the low level calls
+}
+
+// StringsFilterer is an auto generated log filtering Go binding around an Ethereum contract events.
+type StringsFilterer struct {
+	contract *bind.BoundContract // Generic contract wrapper for the low level calls
+}
+
+// StringsSession is an auto generated Go binding around an Ethereum contract,
+// with pre-set call and transact options.
+type StringsSession struct {
+	Contract     *Strings          // Generic contract binding to set the session for
+	CallOpts     bind.CallOpts     // Call options to use throughout this session
+	TransactOpts bind.TransactOpts // Transaction auth options to use throughout this session
+}
+
+// StringsCallerSession is an auto generated read-only Go binding around an Ethereum contract,
+// with pre-set call options.
+type StringsCallerSession struct {
+	Contract *StringsCaller // Generic contract caller binding to set the session for
+	CallOpts bind.CallOpts  // Call options to use throughout this session
+}
+
+// StringsTransactorSession is an auto generated write-only Go binding around an Ethereum contract,
+// with pre-set transact options.
+type StringsTransactorSession struct {
+	Contract     *StringsTransactor // Generic contract transactor binding to set the session for
+	TransactOpts bind.TransactOpts  // Transaction auth options to use throughout this session
+}
+
+// StringsRaw is an auto generated low-level Go binding around an Ethereum contract.
+type StringsRaw struct {
+	Contract *Strings // Generic contract binding to access the raw methods on
+}
+
+// StringsCallerRaw is an auto generated low-level read-only Go binding around an Ethereum contract.
+type StringsCallerRaw struct {
+	Contract *StringsCaller // Generic read-only contract binding to access the raw methods on
+}
+
+// StringsTransactorRaw is an auto generated low-level write-only Go binding around an Ethereum contract.
+type StringsTransactorRaw struct {
+	Contract *StringsTransactor // Generic write-only contract binding to access the raw methods on
+}
+
+// NewStrings creates a new instance of Strings, bound to a specific deployed contract.
+func NewStrings(address common.Address, backend bind.ContractBackend) (*Strings, error) {
+	contract, err := bindStrings(address, backend, backend, backend)
+	if err != nil {
+		return nil, err
+	}
+	return &Strings{StringsCaller: StringsCaller{contract: contract}, StringsTransactor: StringsTransactor{contract: contract}, StringsFilterer: StringsFilterer{contract: contract}}, nil
+}
+
+// NewStringsCaller creates a new read-only instance of Strings, bound to a specific deployed contract.
+func NewStringsCaller(address common.Address, caller bind.ContractCaller) (*StringsCaller, error) {
+	contract, err := bindStrings(address, caller, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	return &StringsCaller{contract: contract}, nil
+}
+
+// NewStringsTransactor creates a new write-only instance of Strings, bound to a specific deployed contract.
+func NewStringsTransactor(address common.Address, transactor bind.ContractTransactor) (*StringsTransactor, error) {
+	contract, err := bindStrings(address, nil, transactor, nil)
+	if err != nil {
+		return nil, err
+	}
+	return &StringsTransactor{contract: contract}, nil
+}
+
+// NewStringsFilterer creates a new log filterer instance of Strings, bound to a specific deployed contract.
+func NewStringsFilterer(address common.Address, filterer bind.ContractFilterer) (*StringsFilterer, error) {
+	contract, err := bindStrings(address, nil, nil, filterer)
+	if err != nil {
+		return nil, err
+	}
+	return &StringsFilterer{contract: contract}, nil
+}
+
+// bindStrings binds a generic wrapper to an already deployed contract.
+func bindStrings(address common.Address, caller bind.ContractCaller, transactor bind.ContractTransactor, filterer bind.ContractFilterer) (*bind.BoundContract, error) {
+	parsed, err := abi.JSON(strings.NewReader(StringsABI))
+	if err != nil {
+		return nil, err
+	}
+	return bind.NewBoundContract(address, parsed, caller, transactor, filterer), nil
+}
+
+// Call invokes the (constant) contract method with params as input values and
+// sets the output to result. The result type might be a single field for simple
+// returns, a slice of interfaces for anonymous returns and a struct for named
+// returns.
+func (_Strings *StringsRaw) Call(opts *bind.CallOpts, result *[]interface{}, method string, params ...interface{}) error {
+	return _Strings.Contract.StringsCaller.contract.Call(opts, result, method, params...)
+}
+
+// Transfer initiates a plain transaction to move funds to the contract, calling
+// its default method if one is available.
+func (_Strings *StringsRaw) Transfer(opts *bind.TransactOpts) (*types.Transaction, error) {
+	return _Strings.Contract.StringsTransactor.contract.Transfer(opts)
+}
+
+// Transact invokes the (paid) contract method with params as input values.
+func (_Strings *StringsRaw) Transact(opts *bind.TransactOpts, method string, params ...interface{}) (*types.Transaction, error) {
+	return _Strings.Contract.StringsTransactor.contract.Transact(opts, method, params...)
+}
+
+// Call invokes the (constant) contract method with params as input values and
+// sets the output to result. The result type might be a single field for simple
+// returns, a slice of interfaces for anonymous returns and a struct for named
+// returns.
+func (_Strings *StringsCallerRaw) Call(opts *bind.CallOpts, result *[]interface{}, method string, params ...interface{}) error {
+	return _Strings.Contract.contract.Call(opts, result, method, params...)
+}
+
+// Transfer initiates a plain transaction to move funds to the contract, calling
+// its default method if one is available.
+func (_Strings *StringsTransactorRaw) Transfer(opts *bind.TransactOpts) (*types.Transaction, error) {
+	return _Strings.Contract.contract.Transfer(opts)
+}
+
+// Transact invokes the (paid) contract method with params as input values.
+func (_Strings *StringsTransactorRaw) Transact(opts *bind.TransactOpts, method string, params ...interface{}) (*types.Transaction, error) {
+	return _Strings.Contract.contract.Transact(opts, method, params...)
+}
+
+// TrivialAppMetaData contains all meta data concerning the TrivialApp contract.
+var TrivialAppMetaData = &bind.MetaData{
+	ABI: "[{\"inputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"challengeDuration\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"nonce\",\"type\":\"uint256\"},{\"internalType\":\"address[]\",\"name\":\"participants\",\"type\":\"address[]\"},{\"internalType\":\"address\",\"name\":\"app\",\"type\":\"address\"},{\"internalType\":\"bool\",\"name\":\"ledgerChannel\",\"type\":\"bool\"},{\"internalType\":\"bool\",\"name\":\"virtualChannel\",\"type\":\"bool\"}],\"internalType\":\"structChannel.Params\",\"name\":\"params\",\"type\":\"tuple\"},{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"channelID\",\"type\":\"bytes32\"},{\"internalType\":\"uint64\",\"name\":\"version\",\"type\":\"uint64\"},{\"components\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"chainID\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"holder\",\"type\":\"address\"}],\"internalType\":\"structChannel.Asset[]\",\"name\":\"assets\",\"type\":\"tuple[]\"},{\"internalType\":\"uint256[][]\",\"name\":\"balances\",\"type\":\"uint256[][]\"},{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"ID\",\"type\":\"bytes32\"},{\"internalType\":\"uint256[]\",\"name\":\"balances\",\"type\":\"uint256[]\"},{\"internalType\":\"uint16[]\",\"name\":\"indexMap\",\"type\":\"uint16[]\"}],\"internalType\":\"structChannel.SubAlloc[]\",\"name\":\"locked\",\"type\":\"tuple[]\"}],\"internalType\":\"structChannel.Allocation\",\"name\":\"outcome\",\"type\":\"tuple\"},{\"internalType\":\"bytes\",\"name\":\"appData\",\"type\":\"bytes\"},{\"internalType\":\"bool\",\"name\":\"isFinal\",\"type\":\"bool\"}],\"internalType\":\"structChannel.State\",\"name\":\"from\",\"type\":\"tuple\"},{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"channelID\",\"type\":\"bytes32\"},{\"internalType\":\"uint64\",\"name\":\"version\",\"type\":\"uint64\"},{\"components\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"chainID\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"holder\",\"type\":\"address\"}],\"internalType\":\"structChannel.Asset[]\",\"name\":\"assets\",\"type\":\"tuple[]\"},{\"internalType\":\"uint256[][]\",\"name\":\"balances\",\"type\":\"uint256[][]\"},{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"ID\",\"type\":\"bytes32\"},{\"internalType\":\"uint256[]\",\"name\":\"balances\",\"type\":\"uint256[]\"},{\"internalType\":\"uint16[]\",\"name\":\"indexMap\",\"type\":\"uint16[]\"}],\"internalType\":\"structChannel.SubAlloc[]\",\"name\":\"locked\",\"type\":\"tuple[]\"}],\"internalType\":\"structChannel.Allocation\",\"name\":\"outcome\",\"type\":\"tuple\"},{\"internalType\":\"bytes\",\"name\":\"appData\",\"type\":\"bytes\"},{\"internalType\":\"bool\",\"name\":\"isFinal\",\"type\":\"bool\"}],\"internalType\":\"structChannel.State\",\"name\":\"to\",\"type\":\"tuple\"},{\"internalType\":\"uint256\",\"name\":\"actorIdx\",\"type\":\"uint256\"}],\"name\":\"validTransition\",\"outputs\":[],\"stateMutability\":\"pure\",\"type\":\"function\"}]",
+	Sigs: map[string]string{
+		"6d7eba0d": "validTransition((uint256,uint256,address[],address,bool,bool),(bytes32,uint64,((uint256,address)[],uint256[][],(bytes32,uint256[],uint16[])[]),bytes,bool),(bytes32,uint64,((uint256,address)[],uint256[][],(bytes32,uint256[],uint16[])[]),bytes,bool),uint256)",
+	},
+	Bin: "0x608060405234801561001057600080fd5b5061011c806100206000396000f3fe6080604052348015600f57600080fd5b506004361060285760003560e01c80636d7eba0d14602d575b600080fd5b603e60383660046057565b50505050565b005b600060a08284031215605157600080fd5b50919050565b60008060008060808587031215606c57600080fd5b843567ffffffffffffffff80821115608357600080fd5b9086019060c08289031215609657600080fd5b9094506020860135908082111560ab57600080fd5b60b5888389016040565b9450604087013591508082111560ca57600080fd5b5060d5878288016040565b94979396509394606001359350505056fea26469706673582212205d3a346f9b475ce2eb6165c56be274d48c9603633125d8ff9d0976534e0350bc64736f6c634300080b0033",
+}
+
+// TrivialAppABI is the input ABI used to generate the binding from.
+// Deprecated: Use TrivialAppMetaData.ABI instead.
+var TrivialAppABI = TrivialAppMetaData.ABI
+
+// Deprecated: Use TrivialAppMetaData.Sigs instead.
+// TrivialAppFuncSigs maps the 4-byte function signature to its string representation.
+var TrivialAppFuncSigs = TrivialAppMetaData.Sigs
+
+// TrivialAppBin is the compiled bytecode used for deploying new contracts.
+// Deprecated: Use TrivialAppMetaData.Bin instead.
+var TrivialAppBin = TrivialAppMetaData.Bin
+
+// DeployTrivialApp deploys a new Ethereum contract, binding an instance of TrivialApp to it.
+func DeployTrivialApp(auth *bind.TransactOpts, backend bind.ContractBackend) (common.Address, *types.Transaction, *TrivialApp, error) {
+	parsed, err := TrivialAppMetaData.GetAbi()
+	if err != nil {
+		return common.Address{}, nil, nil, err
+	}
+	if parsed == nil {
+		return common.Address{}, nil, nil, errors.New("GetABI returned nil")
+	}
+
+	address, tx, contract, err := bind.DeployContract(auth, *parsed, common.FromHex(TrivialAppBin), backend)
 	if err != nil {
 		return common.Address{}, nil, nil, err
 	}
@@ -1215,9 +1472,9 @@ func (_TrivialApp *TrivialAppTransactorRaw) Transact(opts *bind.TransactOpts, me
 	return _TrivialApp.Contract.contract.Transact(opts, method, params...)
 }
 
-// ValidTransition is a free data retrieval call binding the contract method 0x0d1feb4f.
+// ValidTransition is a free data retrieval call binding the contract method 0x6d7eba0d.
 //
-// Solidity: function validTransition((uint256,uint256,address[],address,bool,bool) params, (bytes32,uint64,(address[],uint256[][],(bytes32,uint256[],uint16[])[]),bytes,bool) from, (bytes32,uint64,(address[],uint256[][],(bytes32,uint256[],uint16[])[]),bytes,bool) to, uint256 actorIdx) pure returns()
+// Solidity: function validTransition((uint256,uint256,address[],address,bool,bool) params, (bytes32,uint64,((uint256,address)[],uint256[][],(bytes32,uint256[],uint16[])[]),bytes,bool) from, (bytes32,uint64,((uint256,address)[],uint256[][],(bytes32,uint256[],uint16[])[]),bytes,bool) to, uint256 actorIdx) pure returns()
 func (_TrivialApp *TrivialAppCaller) ValidTransition(opts *bind.CallOpts, params ChannelParams, from ChannelState, to ChannelState, actorIdx *big.Int) error {
 	var out []interface{}
 	err := _TrivialApp.contract.Call(opts, &out, "validTransition", params, from, to, actorIdx)
@@ -1230,16 +1487,16 @@ func (_TrivialApp *TrivialAppCaller) ValidTransition(opts *bind.CallOpts, params
 
 }
 
-// ValidTransition is a free data retrieval call binding the contract method 0x0d1feb4f.
+// ValidTransition is a free data retrieval call binding the contract method 0x6d7eba0d.
 //
-// Solidity: function validTransition((uint256,uint256,address[],address,bool,bool) params, (bytes32,uint64,(address[],uint256[][],(bytes32,uint256[],uint16[])[]),bytes,bool) from, (bytes32,uint64,(address[],uint256[][],(bytes32,uint256[],uint16[])[]),bytes,bool) to, uint256 actorIdx) pure returns()
+// Solidity: function validTransition((uint256,uint256,address[],address,bool,bool) params, (bytes32,uint64,((uint256,address)[],uint256[][],(bytes32,uint256[],uint16[])[]),bytes,bool) from, (bytes32,uint64,((uint256,address)[],uint256[][],(bytes32,uint256[],uint16[])[]),bytes,bool) to, uint256 actorIdx) pure returns()
 func (_TrivialApp *TrivialAppSession) ValidTransition(params ChannelParams, from ChannelState, to ChannelState, actorIdx *big.Int) error {
 	return _TrivialApp.Contract.ValidTransition(&_TrivialApp.CallOpts, params, from, to, actorIdx)
 }
 
-// ValidTransition is a free data retrieval call binding the contract method 0x0d1feb4f.
+// ValidTransition is a free data retrieval call binding the contract method 0x6d7eba0d.
 //
-// Solidity: function validTransition((uint256,uint256,address[],address,bool,bool) params, (bytes32,uint64,(address[],uint256[][],(bytes32,uint256[],uint16[])[]),bytes,bool) from, (bytes32,uint64,(address[],uint256[][],(bytes32,uint256[],uint16[])[]),bytes,bool) to, uint256 actorIdx) pure returns()
+// Solidity: function validTransition((uint256,uint256,address[],address,bool,bool) params, (bytes32,uint64,((uint256,address)[],uint256[][],(bytes32,uint256[],uint16[])[]),bytes,bool) from, (bytes32,uint64,((uint256,address)[],uint256[][],(bytes32,uint256[],uint16[])[]),bytes,bool) to, uint256 actorIdx) pure returns()
 func (_TrivialApp *TrivialAppCallerSession) ValidTransition(params ChannelParams, from ChannelState, to ChannelState, actorIdx *big.Int) error {
 	return _TrivialApp.Contract.ValidTransition(&_TrivialApp.CallOpts, params, from, to, actorIdx)
 }

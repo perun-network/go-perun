@@ -4,6 +4,7 @@
 package assetholder
 
 import (
+	"errors"
 	"math/big"
 	"strings"
 
@@ -17,6 +18,7 @@ import (
 
 // Reference imports to suppress errors if they are not otherwise used.
 var (
+	_ = errors.New
 	_ = big.NewInt
 	_ = strings.NewReader
 	_ = ethereum.NotFound
@@ -34,18 +36,26 @@ type AssetHolderWithdrawalAuth struct {
 	Amount      *big.Int
 }
 
-// AssetHolderABI is the input ABI used to generate the binding from.
-const AssetHolderABI = "[{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"fundingID\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"Deposited\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"channelID\",\"type\":\"bytes32\"}],\"name\":\"OutcomeSet\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"fundingID\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"receiver\",\"type\":\"address\"}],\"name\":\"Withdrawn\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"adjudicator\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"fundingID\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"deposit\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"name\":\"holdings\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"channelID\",\"type\":\"bytes32\"},{\"internalType\":\"address[]\",\"name\":\"parts\",\"type\":\"address[]\"},{\"internalType\":\"uint256[]\",\"name\":\"newBals\",\"type\":\"uint256[]\"}],\"name\":\"setOutcome\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"name\":\"settled\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"channelID\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"participant\",\"type\":\"address\"},{\"internalType\":\"addresspayable\",\"name\":\"receiver\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"internalType\":\"structAssetHolder.WithdrawalAuth\",\"name\":\"authorization\",\"type\":\"tuple\"},{\"internalType\":\"bytes\",\"name\":\"signature\",\"type\":\"bytes\"}],\"name\":\"withdraw\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]"
-
-// AssetHolderFuncSigs maps the 4-byte function signature to its string representation.
-var AssetHolderFuncSigs = map[string]string{
-	"53c2ed8e": "adjudicator()",
-	"1de26e16": "deposit(bytes32,uint256)",
-	"ae9ee18c": "holdings(bytes32)",
-	"fc79a66d": "setOutcome(bytes32,address[],uint256[])",
-	"d945af1d": "settled(bytes32)",
-	"4ed4283c": "withdraw((bytes32,address,address,uint256),bytes)",
+// AssetHolderMetaData contains all meta data concerning the AssetHolder contract.
+var AssetHolderMetaData = &bind.MetaData{
+	ABI: "[{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"fundingID\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"Deposited\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"channelID\",\"type\":\"bytes32\"}],\"name\":\"OutcomeSet\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"fundingID\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"receiver\",\"type\":\"address\"}],\"name\":\"Withdrawn\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"adjudicator\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"fundingID\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"deposit\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"name\":\"holdings\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"channelID\",\"type\":\"bytes32\"},{\"internalType\":\"address[]\",\"name\":\"parts\",\"type\":\"address[]\"},{\"internalType\":\"uint256[]\",\"name\":\"newBals\",\"type\":\"uint256[]\"}],\"name\":\"setOutcome\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"name\":\"settled\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"channelID\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"participant\",\"type\":\"address\"},{\"internalType\":\"addresspayable\",\"name\":\"receiver\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"internalType\":\"structAssetHolder.WithdrawalAuth\",\"name\":\"authorization\",\"type\":\"tuple\"},{\"internalType\":\"bytes\",\"name\":\"signature\",\"type\":\"bytes\"}],\"name\":\"withdraw\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
+	Sigs: map[string]string{
+		"53c2ed8e": "adjudicator()",
+		"1de26e16": "deposit(bytes32,uint256)",
+		"ae9ee18c": "holdings(bytes32)",
+		"fc79a66d": "setOutcome(bytes32,address[],uint256[])",
+		"d945af1d": "settled(bytes32)",
+		"4ed4283c": "withdraw((bytes32,address,address,uint256),bytes)",
+	},
 }
+
+// AssetHolderABI is the input ABI used to generate the binding from.
+// Deprecated: Use AssetHolderMetaData.ABI instead.
+var AssetHolderABI = AssetHolderMetaData.ABI
+
+// Deprecated: Use AssetHolderMetaData.Sigs instead.
+// AssetHolderFuncSigs maps the 4-byte function signature to its string representation.
+var AssetHolderFuncSigs = AssetHolderMetaData.Sigs
 
 // AssetHolder is an auto generated Go binding around an Ethereum contract.
 type AssetHolder struct {
@@ -780,20 +790,31 @@ func (_AssetHolder *AssetHolderFilterer) ParseWithdrawn(log types.Log) (*AssetHo
 	return event, nil
 }
 
+// ECDSAMetaData contains all meta data concerning the ECDSA contract.
+var ECDSAMetaData = &bind.MetaData{
+	ABI: "[]",
+	Bin: "0x60566037600b82828239805160001a607314602a57634e487b7160e01b600052600060045260246000fd5b30600052607381538281f3fe73000000000000000000000000000000000000000030146080604052600080fdfea2646970667358221220a69666c7e3f74348fbe39c43885ceef50e81d2bde3c1165f3204eb04a58f43fc64736f6c634300080b0033",
+}
+
 // ECDSAABI is the input ABI used to generate the binding from.
-const ECDSAABI = "[]"
+// Deprecated: Use ECDSAMetaData.ABI instead.
+var ECDSAABI = ECDSAMetaData.ABI
 
 // ECDSABin is the compiled bytecode used for deploying new contracts.
-var ECDSABin = "0x60566023600b82828239805160001a607314601657fe5b30600052607381538281f3fe73000000000000000000000000000000000000000030146080604052600080fdfea2646970667358221220a2e519b4a0a3509f02bba1abcf848979252df4c37ba062299b13fdabec46878464736f6c63430007040033"
+// Deprecated: Use ECDSAMetaData.Bin instead.
+var ECDSABin = ECDSAMetaData.Bin
 
 // DeployECDSA deploys a new Ethereum contract, binding an instance of ECDSA to it.
 func DeployECDSA(auth *bind.TransactOpts, backend bind.ContractBackend) (common.Address, *types.Transaction, *ECDSA, error) {
-	parsed, err := abi.JSON(strings.NewReader(ECDSAABI))
+	parsed, err := ECDSAMetaData.GetAbi()
 	if err != nil {
 		return common.Address{}, nil, nil, err
 	}
+	if parsed == nil {
+		return common.Address{}, nil, nil, errors.New("GetABI returned nil")
+	}
 
-	address, tx, contract, err := bind.DeployContract(auth, parsed, common.FromHex(ECDSABin), backend)
+	address, tx, contract, err := bind.DeployContract(auth, *parsed, common.FromHex(ECDSABin), backend)
 	if err != nil {
 		return common.Address{}, nil, nil, err
 	}
@@ -942,20 +963,31 @@ func (_ECDSA *ECDSATransactorRaw) Transact(opts *bind.TransactOpts, method strin
 	return _ECDSA.Contract.contract.Transact(opts, method, params...)
 }
 
+// SafeMathMetaData contains all meta data concerning the SafeMath contract.
+var SafeMathMetaData = &bind.MetaData{
+	ABI: "[]",
+	Bin: "0x60566037600b82828239805160001a607314602a57634e487b7160e01b600052600060045260246000fd5b30600052607381538281f3fe73000000000000000000000000000000000000000030146080604052600080fdfea2646970667358221220471e1d919abae632f18d0e0968e431339e755a0b535af09ca98eee7e12ba461264736f6c634300080b0033",
+}
+
 // SafeMathABI is the input ABI used to generate the binding from.
-const SafeMathABI = "[]"
+// Deprecated: Use SafeMathMetaData.ABI instead.
+var SafeMathABI = SafeMathMetaData.ABI
 
 // SafeMathBin is the compiled bytecode used for deploying new contracts.
-var SafeMathBin = "0x60566023600b82828239805160001a607314601657fe5b30600052607381538281f3fe73000000000000000000000000000000000000000030146080604052600080fdfea26469706673582212209d2110f8008a32668165aee96d39b9a3b210868f452685996027830739a87e3064736f6c63430007040033"
+// Deprecated: Use SafeMathMetaData.Bin instead.
+var SafeMathBin = SafeMathMetaData.Bin
 
 // DeploySafeMath deploys a new Ethereum contract, binding an instance of SafeMath to it.
 func DeploySafeMath(auth *bind.TransactOpts, backend bind.ContractBackend) (common.Address, *types.Transaction, *SafeMath, error) {
-	parsed, err := abi.JSON(strings.NewReader(SafeMathABI))
+	parsed, err := SafeMathMetaData.GetAbi()
 	if err != nil {
 		return common.Address{}, nil, nil, err
 	}
+	if parsed == nil {
+		return common.Address{}, nil, nil, errors.New("GetABI returned nil")
+	}
 
-	address, tx, contract, err := bind.DeployContract(auth, parsed, common.FromHex(SafeMathBin), backend)
+	address, tx, contract, err := bind.DeployContract(auth, *parsed, common.FromHex(SafeMathBin), backend)
 	if err != nil {
 		return common.Address{}, nil, nil, err
 	}
@@ -1104,20 +1136,31 @@ func (_SafeMath *SafeMathTransactorRaw) Transact(opts *bind.TransactOpts, method
 	return _SafeMath.Contract.contract.Transact(opts, method, params...)
 }
 
+// SigMetaData contains all meta data concerning the Sig contract.
+var SigMetaData = &bind.MetaData{
+	ABI: "[]",
+	Bin: "0x60566037600b82828239805160001a607314602a57634e487b7160e01b600052600060045260246000fd5b30600052607381538281f3fe73000000000000000000000000000000000000000030146080604052600080fdfea26469706673582212203dc81af3b98df98c0aa095b8ed7e3a0ad7b2dd5c255627887b57fb6cddc2a31b64736f6c634300080b0033",
+}
+
 // SigABI is the input ABI used to generate the binding from.
-const SigABI = "[]"
+// Deprecated: Use SigMetaData.ABI instead.
+var SigABI = SigMetaData.ABI
 
 // SigBin is the compiled bytecode used for deploying new contracts.
-var SigBin = "0x60566023600b82828239805160001a607314601657fe5b30600052607381538281f3fe73000000000000000000000000000000000000000030146080604052600080fdfea2646970667358221220c3751b740d506c41c776ad3c92ca113b46a314ff1f98b52d4b23f32eaccf354664736f6c63430007040033"
+// Deprecated: Use SigMetaData.Bin instead.
+var SigBin = SigMetaData.Bin
 
 // DeploySig deploys a new Ethereum contract, binding an instance of Sig to it.
 func DeploySig(auth *bind.TransactOpts, backend bind.ContractBackend) (common.Address, *types.Transaction, *Sig, error) {
-	parsed, err := abi.JSON(strings.NewReader(SigABI))
+	parsed, err := SigMetaData.GetAbi()
 	if err != nil {
 		return common.Address{}, nil, nil, err
 	}
+	if parsed == nil {
+		return common.Address{}, nil, nil, errors.New("GetABI returned nil")
+	}
 
-	address, tx, contract, err := bind.DeployContract(auth, parsed, common.FromHex(SigBin), backend)
+	address, tx, contract, err := bind.DeployContract(auth, *parsed, common.FromHex(SigBin), backend)
 	if err != nil {
 		return common.Address{}, nil, nil, err
 	}
@@ -1264,4 +1307,177 @@ func (_Sig *SigTransactorRaw) Transfer(opts *bind.TransactOpts) (*types.Transact
 // Transact invokes the (paid) contract method with params as input values.
 func (_Sig *SigTransactorRaw) Transact(opts *bind.TransactOpts, method string, params ...interface{}) (*types.Transaction, error) {
 	return _Sig.Contract.contract.Transact(opts, method, params...)
+}
+
+// StringsMetaData contains all meta data concerning the Strings contract.
+var StringsMetaData = &bind.MetaData{
+	ABI: "[]",
+	Bin: "0x60566037600b82828239805160001a607314602a57634e487b7160e01b600052600060045260246000fd5b30600052607381538281f3fe73000000000000000000000000000000000000000030146080604052600080fdfea2646970667358221220db17f2024bbfd2f1f26302f02fc41013ace7fe2618113cb0b9aeca90071412f364736f6c634300080b0033",
+}
+
+// StringsABI is the input ABI used to generate the binding from.
+// Deprecated: Use StringsMetaData.ABI instead.
+var StringsABI = StringsMetaData.ABI
+
+// StringsBin is the compiled bytecode used for deploying new contracts.
+// Deprecated: Use StringsMetaData.Bin instead.
+var StringsBin = StringsMetaData.Bin
+
+// DeployStrings deploys a new Ethereum contract, binding an instance of Strings to it.
+func DeployStrings(auth *bind.TransactOpts, backend bind.ContractBackend) (common.Address, *types.Transaction, *Strings, error) {
+	parsed, err := StringsMetaData.GetAbi()
+	if err != nil {
+		return common.Address{}, nil, nil, err
+	}
+	if parsed == nil {
+		return common.Address{}, nil, nil, errors.New("GetABI returned nil")
+	}
+
+	address, tx, contract, err := bind.DeployContract(auth, *parsed, common.FromHex(StringsBin), backend)
+	if err != nil {
+		return common.Address{}, nil, nil, err
+	}
+	return address, tx, &Strings{StringsCaller: StringsCaller{contract: contract}, StringsTransactor: StringsTransactor{contract: contract}, StringsFilterer: StringsFilterer{contract: contract}}, nil
+}
+
+// Strings is an auto generated Go binding around an Ethereum contract.
+type Strings struct {
+	StringsCaller     // Read-only binding to the contract
+	StringsTransactor // Write-only binding to the contract
+	StringsFilterer   // Log filterer for contract events
+}
+
+// StringsCaller is an auto generated read-only Go binding around an Ethereum contract.
+type StringsCaller struct {
+	contract *bind.BoundContract // Generic contract wrapper for the low level calls
+}
+
+// StringsTransactor is an auto generated write-only Go binding around an Ethereum contract.
+type StringsTransactor struct {
+	contract *bind.BoundContract // Generic contract wrapper for the low level calls
+}
+
+// StringsFilterer is an auto generated log filtering Go binding around an Ethereum contract events.
+type StringsFilterer struct {
+	contract *bind.BoundContract // Generic contract wrapper for the low level calls
+}
+
+// StringsSession is an auto generated Go binding around an Ethereum contract,
+// with pre-set call and transact options.
+type StringsSession struct {
+	Contract     *Strings          // Generic contract binding to set the session for
+	CallOpts     bind.CallOpts     // Call options to use throughout this session
+	TransactOpts bind.TransactOpts // Transaction auth options to use throughout this session
+}
+
+// StringsCallerSession is an auto generated read-only Go binding around an Ethereum contract,
+// with pre-set call options.
+type StringsCallerSession struct {
+	Contract *StringsCaller // Generic contract caller binding to set the session for
+	CallOpts bind.CallOpts  // Call options to use throughout this session
+}
+
+// StringsTransactorSession is an auto generated write-only Go binding around an Ethereum contract,
+// with pre-set transact options.
+type StringsTransactorSession struct {
+	Contract     *StringsTransactor // Generic contract transactor binding to set the session for
+	TransactOpts bind.TransactOpts  // Transaction auth options to use throughout this session
+}
+
+// StringsRaw is an auto generated low-level Go binding around an Ethereum contract.
+type StringsRaw struct {
+	Contract *Strings // Generic contract binding to access the raw methods on
+}
+
+// StringsCallerRaw is an auto generated low-level read-only Go binding around an Ethereum contract.
+type StringsCallerRaw struct {
+	Contract *StringsCaller // Generic read-only contract binding to access the raw methods on
+}
+
+// StringsTransactorRaw is an auto generated low-level write-only Go binding around an Ethereum contract.
+type StringsTransactorRaw struct {
+	Contract *StringsTransactor // Generic write-only contract binding to access the raw methods on
+}
+
+// NewStrings creates a new instance of Strings, bound to a specific deployed contract.
+func NewStrings(address common.Address, backend bind.ContractBackend) (*Strings, error) {
+	contract, err := bindStrings(address, backend, backend, backend)
+	if err != nil {
+		return nil, err
+	}
+	return &Strings{StringsCaller: StringsCaller{contract: contract}, StringsTransactor: StringsTransactor{contract: contract}, StringsFilterer: StringsFilterer{contract: contract}}, nil
+}
+
+// NewStringsCaller creates a new read-only instance of Strings, bound to a specific deployed contract.
+func NewStringsCaller(address common.Address, caller bind.ContractCaller) (*StringsCaller, error) {
+	contract, err := bindStrings(address, caller, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	return &StringsCaller{contract: contract}, nil
+}
+
+// NewStringsTransactor creates a new write-only instance of Strings, bound to a specific deployed contract.
+func NewStringsTransactor(address common.Address, transactor bind.ContractTransactor) (*StringsTransactor, error) {
+	contract, err := bindStrings(address, nil, transactor, nil)
+	if err != nil {
+		return nil, err
+	}
+	return &StringsTransactor{contract: contract}, nil
+}
+
+// NewStringsFilterer creates a new log filterer instance of Strings, bound to a specific deployed contract.
+func NewStringsFilterer(address common.Address, filterer bind.ContractFilterer) (*StringsFilterer, error) {
+	contract, err := bindStrings(address, nil, nil, filterer)
+	if err != nil {
+		return nil, err
+	}
+	return &StringsFilterer{contract: contract}, nil
+}
+
+// bindStrings binds a generic wrapper to an already deployed contract.
+func bindStrings(address common.Address, caller bind.ContractCaller, transactor bind.ContractTransactor, filterer bind.ContractFilterer) (*bind.BoundContract, error) {
+	parsed, err := abi.JSON(strings.NewReader(StringsABI))
+	if err != nil {
+		return nil, err
+	}
+	return bind.NewBoundContract(address, parsed, caller, transactor, filterer), nil
+}
+
+// Call invokes the (constant) contract method with params as input values and
+// sets the output to result. The result type might be a single field for simple
+// returns, a slice of interfaces for anonymous returns and a struct for named
+// returns.
+func (_Strings *StringsRaw) Call(opts *bind.CallOpts, result *[]interface{}, method string, params ...interface{}) error {
+	return _Strings.Contract.StringsCaller.contract.Call(opts, result, method, params...)
+}
+
+// Transfer initiates a plain transaction to move funds to the contract, calling
+// its default method if one is available.
+func (_Strings *StringsRaw) Transfer(opts *bind.TransactOpts) (*types.Transaction, error) {
+	return _Strings.Contract.StringsTransactor.contract.Transfer(opts)
+}
+
+// Transact invokes the (paid) contract method with params as input values.
+func (_Strings *StringsRaw) Transact(opts *bind.TransactOpts, method string, params ...interface{}) (*types.Transaction, error) {
+	return _Strings.Contract.StringsTransactor.contract.Transact(opts, method, params...)
+}
+
+// Call invokes the (constant) contract method with params as input values and
+// sets the output to result. The result type might be a single field for simple
+// returns, a slice of interfaces for anonymous returns and a struct for named
+// returns.
+func (_Strings *StringsCallerRaw) Call(opts *bind.CallOpts, result *[]interface{}, method string, params ...interface{}) error {
+	return _Strings.Contract.contract.Call(opts, result, method, params...)
+}
+
+// Transfer initiates a plain transaction to move funds to the contract, calling
+// its default method if one is available.
+func (_Strings *StringsTransactorRaw) Transfer(opts *bind.TransactOpts) (*types.Transaction, error) {
+	return _Strings.Contract.contract.Transfer(opts)
+}
+
+// Transact invokes the (paid) contract method with params as input values.
+func (_Strings *StringsTransactorRaw) Transact(opts *bind.TransactOpts, method string, params ...interface{}) (*types.Transaction, error) {
+	return _Strings.Contract.contract.Transact(opts, method, params...)
 }
