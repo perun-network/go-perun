@@ -45,11 +45,11 @@ func (d *ETHDepositor) Deposit(ctx context.Context, req DepositReq) (types.Trans
 	// since we only use the interface functions here.
 	contract, err := assetholdereth.NewAssetHolderETH(req.Asset.EthAddress(), req.CB)
 	if err != nil {
-		return nil, errors.Wrapf(err, "binding AssetHolderETH contract at: %x", req.Asset)
+		return nil, errors.Wrapf(err, "binding AssetHolderETH contract at: %x", req.Asset.Address)
 	}
 	opts, err := req.CB.NewTransactor(ctx, ETHDepositorGasLimit, req.Account)
 	if err != nil {
-		return nil, errors.WithMessagef(err, "creating transactor for asset: %x", req.Asset)
+		return nil, errors.WithMessagef(err, "creating transactor for asset: %v", req.Asset)
 	}
 	opts.Value = req.Balance
 
