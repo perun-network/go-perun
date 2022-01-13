@@ -42,6 +42,9 @@ const (
 	maxNumParts = int32(10)
 	// minimal number of participants that NumParts returns.
 	minNumParts = int32(2)
+
+	// Max challenge duration, 365 days.
+	maxChallengeDuration = 365 * 24 * 60 * 60
 )
 
 // RandomOpt defines a map of options than can be passed
@@ -314,7 +317,7 @@ func (o RandomOpt) BalancesRange() (min, max channel.Bal) {
 // If not present, a random value is generated with `rng` as entropy source.
 func (o RandomOpt) ChallengeDuration(rng *rand.Rand) uint64 {
 	if _, ok := o["challengeDuration"]; !ok {
-		o["challengeDuration"] = rng.Uint64()
+		o["challengeDuration"] = uint64(rng.Int63n(maxChallengeDuration))
 	}
 	return o["challengeDuration"].(uint64)
 }
