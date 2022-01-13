@@ -187,7 +187,7 @@ func ToEthState(s *channel.State) adjudicator.ChannelState {
 		locked[i] = adjudicator.ChannelSubAlloc{ID: sub.ID, Balances: sub.Bals, IndexMap: indexMap}
 	}
 	outcome := adjudicator.ChannelAllocation{
-		Assets:   assetsToCommonAddresses(s.Allocation.Assets),
+		Assets:   toEthAssets(s.Allocation.Assets),
 		Balances: s.Balances,
 		Locked:   locked,
 	}
@@ -222,8 +222,8 @@ func EncodeState(state *adjudicator.ChannelState) ([]byte, error) {
 	return enc, errors.WithStack(err)
 }
 
-// assetsToCommonAddresses converts an array of Assets to common.Addresses.
-func assetsToCommonAddresses(addr []channel.Asset) []common.Address {
+// toEthAssets converts an array of Assets to common.Addresses.
+func toEthAssets(addr []channel.Asset) []adjudicator.ChannelAsset {
 	cAddrs := make([]common.Address, len(addr))
 	for i, part := range addr {
 		asset, ok := part.(*Asset)
@@ -284,7 +284,7 @@ func makeIndexMap(m []uint16) []channel.Index {
 	return _m
 }
 
-func fromEthAssets(assets []common.Address) []channel.Asset {
+func fromEthAssets(assets []adjudicator.ChannelAsset) []channel.Asset {
 	_assets := make([]channel.Asset, len(assets))
 	for i, a := range assets {
 		_assets[i] = NewAssetFromAddress(a)
