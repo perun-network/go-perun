@@ -72,9 +72,10 @@ var _ channel.Funder = (*Funder)(nil)
 // NewFunder creates a new ethereum funder.
 func NewFunder() *Funder {
 	return &Funder{
+		log:        log.Default(),
+		ledgers:    make(map[ChainIDMapKey]*ContractBackend),
 		accounts:   make(map[AssetMapKey]accounts.Account),
 		depositors: make(map[AssetMapKey]Depositor),
-		log:        log.Default(),
 	}
 }
 
@@ -221,6 +222,7 @@ func (f *Funder) fundAssets(ctx context.Context, channelID channel.ID, req chann
 // sendFundingTx sends and returns the TXs that are needed to fulfill the
 // funding request. It is idempotent.
 func (f *Funder) sendFundingTx(ctx context.Context, request channel.FundingReq, contract assetHolder, fundingID [32]byte) (txs []*types.Transaction, fatal error) {
+	asset := request.State.Assets[contract.assetIndex].(*Asset)
 	bal := request.Agreement[contract.assetIndex][request.Idx]
 	if bal == nil || bal.Sign() <= 0 {
 		f.log.WithFields(log.Fields{"channel": request.Params.ID(), "idx": request.Idx}).Debug("Skipped zero funding.")
@@ -235,7 +237,7 @@ func (f *Funder) sendFundingTx(ctx context.Context, request channel.FundingReq, 
 		return nil, nil
 	}
 
-	return f.deposit(ctx, bal, *NewAssetFromAddress(*contract.Address), fundingID)
+	return f.deposit(ctx, bal, *NewAssetFromEth(asset.chainID.Int, asset.EthAddress()), fundingID)
 }
 
 // deposit deposits funds for one funding-ID by calling the associated Depositor.

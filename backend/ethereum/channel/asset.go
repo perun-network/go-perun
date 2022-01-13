@@ -84,7 +84,7 @@ func (a Asset) MapKey() AssetMapKey {
 
 func (a Asset) MarshalBinary() ([]byte, error) {
 	var buf bytes.Buffer
-	err := perunio.Encode(&buf, a.Address, a.chainID)
+	err := perunio.Encode(&buf, &a.Address, a.chainID)
 	if err != nil {
 		return nil, err
 	}
@@ -96,9 +96,10 @@ func (a *Asset) UnmarshalBinary(data []byte) error {
 	return perunio.Decode(buf, &a.Address, &a.chainID)
 }
 
-// NewAssetFromAddress creates a new asset from an Ethereum address.
-func NewAssetFromAddress(chainID ChainID, a common.Address) *Asset {
-	return &Asset{*wallet.AsWalletAddr(a), chainID}
+// NewAssetFromEth creates a new asset from an Ethereum address.
+func NewAssetFromEth(chainID *big.Int, a common.Address) *Asset {
+	id := MakeChainID(chainID)
+	return &Asset{*wallet.AsWalletAddr(a), id}
 }
 
 // EthAddress returns the Ethereum address representation of the asset.

@@ -402,12 +402,13 @@ func newNFunders(
 		keystore.NewTransactor(*ksWallet, types.NewEIP155Signer(big.NewInt(1337))),
 		TxFinalityDepth,
 	)
+	chainID := ethchannel.MakeChainID(simBackend.Blockchain().Config().ChainID)
 
 	// Deploy ETHAssetholder
 	assetAddr1, err := ethchannel.DeployETHAssetholder(ctx, cb, deployAccount.Address, *deployAccount)
 	require.NoError(t, err, "Deployment should succeed")
 	t.Logf("asset holder #1 address is %s", assetAddr1.Hex())
-	asset1 := ethchannel.NewAssetFromAddress(assetAddr1)
+	asset1 := ethchannel.NewAssetFromEth(chainID.Int, assetAddr1)
 	// Deploy PerunToken + ETHAssetholder.
 
 	token, err := ethchannel.DeployPerunToken(ctx, cb, *deployAccount, []common.Address{tokenAcc.Address}, channeltest.MaxBalance)
@@ -415,7 +416,7 @@ func newNFunders(
 	assetAddr2, err := ethchannel.DeployERC20Assetholder(ctx, cb, common.Address{}, token, *deployAccount)
 	require.NoError(t, err, "Deployment should succeed")
 	t.Logf("asset holder #2 address is %s", assetAddr2.Hex())
-	asset2 := ethchannel.NewAssetFromAddress(assetAddr2)
+	asset2 := ethchannel.NewAssetFromEth(chainID.Int, assetAddr2)
 
 	parts = make([]wallet.Address, n)
 	funders = make([]*ethchannel.Funder, n)
@@ -428,7 +429,6 @@ func newNFunders(
 		require.NoError(t, err)
 
 		funders[i] = ethchannel.NewFunder()
-		chainID := ethchannel.MakeChainID(simBackend.Blockchain().Config().ChainID)
 		funders[i].RegisterLedger(chainID, &cb)
 		require.True(t, funders[i].RegisterAsset(*asset1, ethchannel.NewETHDepositor(), acc))
 		require.True(t, funders[i].RegisterAsset(*asset2, ethchannel.NewERC20Depositor(token), acc))
@@ -446,8 +446,8 @@ func newNFunders(
 		rng,
 		channeltest.WithNumParts(n),
 		channeltest.WithAssets(
-			ethchannel.NewAssetFromAddress(assetAddr1),
-			ethchannel.NewAssetFromAddress(assetAddr2),
+			ethchannel.NewAssetFromEth(chainID.Int, assetAddr1),
+			ethchannel.NewAssetFromEth(chainID.Int, assetAddr2),
 		),
 	)
 	return parts, funders, params, allocation, cb

@@ -103,6 +103,7 @@ func NewSetup(t *testing.T, rng *rand.Rand, n int, blockInterval time.Duration, 
 		Funders:  make([]*ethchannel.Funder, n),
 		Adjs:     make([]*SimAdjudicator, n),
 	}
+	chainID := ethchannel.MakeChainID(s.SimBackend.Blockchain().Config().ChainID)
 
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTxTimeout)
 	defer cancel()
@@ -110,7 +111,7 @@ func NewSetup(t *testing.T, rng *rand.Rand, n int, blockInterval time.Duration, 
 	require.NoError(t, err)
 	ethAsset, err := ethchannel.DeployETHAssetholder(ctx, *s.CB, adjudicator, s.TxSender.Account)
 	require.NoError(t, err)
-	s.Asset = ethchannel.NewAssetFromAddress(ethAsset)
+	s.Asset = ethchannel.NewAssetFromEth(chainID.Int, ethAsset)
 
 	ksWallet := wallettest.RandomWallet().(*keystore.Wallet)
 	require.NoErrorf(t, err, "initializing wallet from test keystore")
@@ -126,7 +127,6 @@ func NewSetup(t *testing.T, rng *rand.Rand, n int, blockInterval time.Duration, 
 			txFinalityDepth,
 		)
 		s.Funders[i] = ethchannel.NewFunder()
-		chainID := ethchannel.MakeChainID(s.SimBackend.Blockchain().Config().ChainID)
 		s.Funders[i].RegisterLedger(chainID, &cb)
 		require.True(t, s.Funders[i].RegisterAsset(*s.Asset, ethchannel.NewETHDepositor(), s.Accs[i].Account))
 		s.Adjs[i] = NewSimAdjudicator(cb, adjudicator, common.Address(*s.Recvs[i]), s.Accs[i].Account)

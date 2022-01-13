@@ -224,13 +224,16 @@ func EncodeState(state *adjudicator.ChannelState) ([]byte, error) {
 
 // toEthAssets converts an array of Assets to common.Addresses.
 func toEthAssets(addr []channel.Asset) []adjudicator.ChannelAsset {
-	cAddrs := make([]common.Address, len(addr))
+	cAddrs := make([]adjudicator.ChannelAsset, len(addr))
 	for i, part := range addr {
 		asset, ok := part.(*Asset)
 		if !ok {
 			log.Panicf("wrong address type: %T", part)
 		}
-		cAddrs[i] = common.Address(asset.Address)
+		cAddrs[i] = adjudicator.ChannelAsset{
+			ChainID: asset.chainID.Int,
+			Holder:  common.Address(asset.Address),
+		}
 	}
 	return cAddrs
 }
@@ -287,7 +290,7 @@ func makeIndexMap(m []uint16) []channel.Index {
 func fromEthAssets(assets []adjudicator.ChannelAsset) []channel.Asset {
 	_assets := make([]channel.Asset, len(assets))
 	for i, a := range assets {
-		_assets[i] = NewAssetFromAddress(a)
+		_assets[i] = NewAssetFromEth(a.ChainID, a.Holder)
 	}
 	return _assets
 }
