@@ -44,17 +44,17 @@ generate() {
     rm -r $PKG
     mkdir $PKG
 
-    # Compile and generate binary runtime.
-    $SOLC --abi --bin --bin-runtime --optimize --allow-paths ../contracts/vendor, ../contracts/contracts/$FILE.sol -o $PKG/
+    # Generate bindings
+    $ABIGEN --pkg $PKG --sol contracts/contracts/$FILE.sol --out $PKG/$FILE.go --solc $SOLC
+
+    # Generate binary runtime
+    $SOLC --bin-runtime --optimize contracts/contracts/$FILE.sol -o $PKG/
     BIN_RUNTIME=`cat ${PKG}/${CONTRACT}.bin-runtime`
     OUT_FILE="$PKG/${CONTRACT}BinRuntime.go"
     echo "package $PKG // import \"perun.network/go-perun/backend/ethereum/bindings/$PKG\"" > $OUT_FILE
     echo >> $OUT_FILE
     echo "// ${CONTRACT}BinRuntime is the runtime part of the compiled bytecode used for deploying new contracts." >> $OUT_FILE
     echo "var ${CONTRACT}BinRuntime = \"$BIN_RUNTIME\"" >> $OUT_FILE
-
-    # Generate bindings.
-    $ABIGEN --pkg $PKG --abi $PKG/$FILE.abi --bin $PKG/$FILE.bin --out $PKG/$FILE.go
 }
 
 # Adjudicator
