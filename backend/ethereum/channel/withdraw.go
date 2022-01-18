@@ -123,6 +123,11 @@ func bindAssetHolder(cb ContractBackend, asset channel.Asset, assetIndex channel
 }
 
 func (a *Adjudicator) callAssetWithdraw(ctx context.Context, request channel.AdjudicatorReq, asset assetHolder) error {
+	b, ok := a.backends[asset.MapKey()]
+	if !ok {
+		return errors.Errorf("no backend registered for asset: %v", asset)
+	}
+
 	auth, sig, err := a.newWithdrawalAuth(request, asset)
 	if err != nil {
 		return errors.WithMessage(err, "creating withdrawal auth")
@@ -132,7 +137,7 @@ func (a *Adjudicator) callAssetWithdraw(ctx context.Context, request channel.Adj
 			return nil, errors.Wrap(ctx.Err(), "context canceled while acquiring tx lock")
 		}
 		defer a.mu.Unlock()
-		trans, err := a.NewTransactor(ctx, GasLimit, a.txSender)
+		trans, err := b.backend.NewTransactor(ctx, GasLimit, a.txSender)
 		if err != nil {
 			return nil, errors.WithMessagef(err, "creating transactor for asset %d", asset.assetIndex)
 		}
@@ -148,7 +153,7 @@ func (a *Adjudicator) callAssetWithdraw(ctx context.Context, request channel.Adj
 	if err != nil {
 		return err
 	}
-	_, err = a.ConfirmTransaction(ctx, tx, a.txSender)
+	_, err = b.backend.ConfirmTransaction(ctx, tx, a.txSender)
 	if err != nil && errors.Is(err, errTxTimedOut) {
 		err = client.NewTxTimedoutError(Withdraw.String(), tx.Hash().Hex(), err.Error())
 	}

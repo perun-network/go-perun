@@ -82,7 +82,7 @@ func testConcludeFinal(t *testing.T, numParts int) {
 				Tx:        tx,
 				Secondary: (i != initiator),
 			}
-			diff, err := test.NonceDiff(s.Accs[i].Address(), s.Adjs[i], func() error {
+			diff, err := test.NonceDiff(s.Accs[i].Address(), s.CB, func() error {
 				return s.Adjs[i].Register(ctx, req, nil)
 			})
 			require.NoError(t, err, "Withdrawing should succeed")

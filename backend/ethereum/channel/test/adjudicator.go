@@ -33,19 +33,23 @@ import (
 // SimTimeout. SimTimeouts advance the clock of the simulated backend when Wait
 // is called.
 type SimAdjudicator struct {
-	ethchannel.Adjudicator
+	*ethchannel.Adjudicator
 	sb *SimulatedBackend
 }
 
 // NewSimAdjudicator returns a new SimAdjudicator for the given backend. The
 // backend must be a SimulatedBackend or it panics.
-func NewSimAdjudicator(backend ethchannel.ContractBackend, contract common.Address, receiver common.Address, acc accounts.Account) *SimAdjudicator {
+func NewSimAdjudicator(chainID ethchannel.ChainID, backend ethchannel.ContractBackend, contract common.Address, receiver common.Address, acc accounts.Account) *SimAdjudicator {
 	sb, ok := backend.ContractInterface.(*SimulatedBackend)
 	if !ok {
 		panic("SimAdjudicator can only be created with a SimulatedBackend.")
 	}
+
+	adj := *ethchannel.NewAdjudicator(receiver, acc)
+	adj.RegisterBackend(chainID, &backend, contract)
+
 	return &SimAdjudicator{
-		Adjudicator: *ethchannel.NewAdjudicator(backend, contract, receiver, acc),
+		Adjudicator: &adj,
 		sb:          sb,
 	}
 }

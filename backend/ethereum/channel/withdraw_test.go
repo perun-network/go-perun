@@ -174,7 +174,7 @@ func testWithdrawZeroBalance(t *testing.T, n int) {
 		req.Acc = s.Accs[i]
 		req.Idx = channel.Index(i)
 		// check that the nonce stays the same for zero balance withdrawals
-		diff, err := test.NonceDiff(s.Accs[i].Address(), adj, func() error {
+		diff, err := test.NonceDiff(s.Accs[i].Address(), s.CB, func() error {
 			return adj.Withdraw(context.Background(), req, nil)
 		})
 		require.NoError(t, err)
@@ -237,12 +237,12 @@ func TestWithdraw(t *testing.T) {
 	t.Run("Withdrawal idempotence", func(t *testing.T) {
 		for i := 0; i < 10; i++ {
 			// get nonce
-			oldNonce, err := s.Adjs[0].PendingNonceAt(context.Background(), ethwallet.AsEthAddr(s.Accs[0].Address()))
+			oldNonce, err := s.CB.PendingNonceAt(context.Background(), ethwallet.AsEthAddr(s.Accs[0].Address()))
 			require.NoError(t, err)
 			// withdraw
 			testWithdraw(t, true)
 			// get nonce
-			nonce, err := s.Adjs[0].PendingNonceAt(context.Background(), ethwallet.AsEthAddr(s.Accs[0].Address()))
+			nonce, err := s.CB.PendingNonceAt(context.Background(), ethwallet.AsEthAddr(s.Accs[0].Address()))
 			require.NoError(t, err)
 			assert.Equal(t, oldNonce, nonce, "Nonce must not change in subsequent withdrawals")
 		}
