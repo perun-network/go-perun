@@ -81,7 +81,9 @@ func NewFunder() *Funder {
 
 // RegisterBackend registers a contract backend under a specific identifier.
 func (f *Funder) RegisterBackend(id ChainID, cb *ContractBackend) {
+	f.mtx.Lock()
 	f.backends[id.MapKey()] = cb
+	f.mtx.Unlock()
 }
 
 // RegisterAsset registers the depositor and account for the specified asset in
