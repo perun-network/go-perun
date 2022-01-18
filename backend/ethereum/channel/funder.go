@@ -57,7 +57,7 @@ type Funder struct {
 	mtx sync.RWMutex
 	log log.Logger // structured logger
 
-	ledgers map[ChainIDMapKey]*ContractBackend
+	backends map[ChainIDMapKey]*ContractBackend
 	// accounts associates an Account to every AssetIndex.
 	accounts map[AssetMapKey]accounts.Account
 	// depositors associates a Depositor to every AssetIndex.
@@ -73,15 +73,15 @@ var _ channel.Funder = (*Funder)(nil)
 func NewFunder() *Funder {
 	return &Funder{
 		log:        log.Default(),
-		ledgers:    make(map[ChainIDMapKey]*ContractBackend),
+		backends:   make(map[ChainIDMapKey]*ContractBackend),
 		accounts:   make(map[AssetMapKey]accounts.Account),
 		depositors: make(map[AssetMapKey]Depositor),
 	}
 }
 
-// RegisterLedger registers a contract backend under a specific identifier.
-func (f *Funder) RegisterLedger(id ChainID, cb *ContractBackend) {
-	f.ledgers[id.MapKey()] = cb
+// RegisterBackend registers a contract backend under a specific identifier.
+func (f *Funder) RegisterBackend(id ChainID, cb *ContractBackend) {
+	f.backends[id.MapKey()] = cb
 }
 
 // RegisterAsset registers the depositor and account for the specified asset in
@@ -161,7 +161,7 @@ func (f *Funder) Fund(ctx context.Context, request channel.FundingReq) error {
 		ethAsset := *asset.(*Asset)
 		for i, tx := range txs[a] {
 			acc := f.accounts[ethAsset.MapKey()]
-			cb := f.ledgers[ethAsset.chainID.MapKey()]
+			cb := f.backends[ethAsset.chainID.MapKey()]
 			if _, err := cb.ConfirmTransaction(ctx, tx, acc); err != nil {
 				if errors.Is(err, errTxTimedOut) {
 					err = client.NewTxTimedoutError(Fund.String(), tx.Hash().Hex(), err.Error())
@@ -200,7 +200,7 @@ func (f *Funder) fundAssets(ctx context.Context, channelID channel.ID, req chann
 	for index, asset := range req.State.Assets {
 		// Bind contract.
 		ethAsset := asset.(*Asset)
-		cb := f.ledgers[ethAsset.chainID.MapKey()]
+		cb := f.backends[ethAsset.chainID.MapKey()]
 		contract := bindAssetHolder(*cb, asset, channel.Index(index))
 		// Wait for the funding event.
 		errg.Go(func() error {
@@ -252,7 +252,7 @@ func (f *Funder) deposit(ctx context.Context, bal *big.Int, asset Asset, funding
 		return nil, errors.Errorf("could not find account for asset #%d", asset)
 	}
 
-	cb := f.ledgers[asset.chainID.MapKey()]
+	cb := f.backends[asset.chainID.MapKey()]
 	return depositor.Deposit(ctx, *NewDepositReq(bal, *cb, asset, acc, fundingID))
 }
 

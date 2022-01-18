@@ -81,7 +81,7 @@ func newFunderSetup(rng *rand.Rand) (
 	)
 	funder := ethchannel.NewFunder()
 	chainID := ethchannel.MakeChainID(simBackend.Blockchain().Config().ChainID)
-	funder.RegisterLedger(chainID, &cb)
+	funder.RegisterBackend(chainID, &cb)
 	assets := make([]ethchannel.Asset, n)
 	depositors := make([]ethchannel.Depositor, n)
 	accs := make([]accounts.Account, n)
@@ -429,7 +429,7 @@ func newNFunders(
 		require.NoError(t, err)
 
 		funders[i] = ethchannel.NewFunder()
-		funders[i].RegisterLedger(chainID, &cb)
+		funders[i].RegisterBackend(chainID, &cb)
 		require.True(t, funders[i].RegisterAsset(*asset1, ethchannel.NewETHDepositor(), acc))
 		require.True(t, funders[i].RegisterAsset(*asset2, ethchannel.NewERC20Depositor(token), acc))
 	}
