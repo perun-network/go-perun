@@ -43,8 +43,6 @@ type Adjudicator struct {
 	Receiver common.Address
 	// Structured logger
 	log log.Logger
-	// Transaction mutex
-	mu psync.Mutex
 	// txSender is sending the TX.
 	txSender accounts.Account
 	// backends is the backend registry
@@ -55,6 +53,8 @@ type adjudicatorBackend struct {
 	backend  *ContractBackend
 	contract *adjudicator.Adjudicator
 	bound    *bind.BoundContract
+	mu       *psync.Mutex
+	txSender accounts.Account
 }
 
 // NewAdjudicator creates a new ethereum adjudicator. The receiver is the
@@ -76,13 +76,13 @@ func (a *Adjudicator) RegisterBackend(id ChainID, cb *ContractBackend, contract 
 	}
 	boundContract := bind.NewBoundContract(contract, bindings.ABI.Adjudicator, cb, cb, cb)
 
-	a.mu.Lock()
 	a.backends[id.MapKey()] = adjudicatorBackend{
 		backend:  cb,
 		contract: adj,
 		bound:    boundContract,
+		mu:       &psync.Mutex{},
+		txSender: a.txSender,
 	}
-	a.mu.Unlock()
 }
 
 // Progress progresses a channel state on-chain.
@@ -190,7 +190,7 @@ func toEthSignedStates(subChannels []channel.SignedState) (ethSubChannels []adju
 	return
 }
 
-func (a *Adjudicator) callConclude(ctx context.Context, req channel.AdjudicatorReq, subStates channel.StateMap) error {
+func (a *Adjudicator) callConcludeBackend(ctx context.Context, b adjudicatorBackend, req channel.AdjudicatorReq, subStates channel.StateMap) error {
 	ethSubStates := toEthSubStates(req.Tx.State, subStates)
 
 	conclude := func(
@@ -203,23 +203,11 @@ func (a *Adjudicator) callConclude(ctx context.Context, req channel.AdjudicatorR
 		return contract.Conclude(opts, params, state, ethSubStates)
 	}
 
-	// Gather backends for channel and subchannels.
-	backends := makeBackendSet(a)
-	err := backends.Add(req.Tx.Assets)
-	if err != nil {
-		return err
-	}
-	for _, sub := range subStates {
-		err := backends.Add(sub.Assets)
-		if err != nil {
-			return err
-		}
-	}
-
-	return a.call(ctx, backends.List(), req, conclude, Conclude)
+	backends := []adjudicatorBackend{b}
+	return a.call(ctx, backends, req, conclude, Conclude)
 }
 
-func (a *Adjudicator) callConcludeFinal(ctx context.Context, req channel.AdjudicatorReq) error {
+func (a *Adjudicator) callConcludeFinalBackend(ctx context.Context, b adjudicatorBackend, req channel.AdjudicatorReq) error {
 	concludeFinal := func(
 		contract *adjudicator.Adjudicator,
 		opts *bind.TransactOpts,
@@ -230,13 +218,8 @@ func (a *Adjudicator) callConcludeFinal(ctx context.Context, req channel.Adjudic
 		return contract.ConcludeFinal(opts, params, state, sigs)
 	}
 
-	backends := makeBackendSet(a)
-	err := backends.Add(req.Tx.Assets)
-	if err != nil {
-		return err
-	}
-
-	return a.call(ctx, backends.List(), req, concludeFinal, ConcludeFinal)
+	backends := []adjudicatorBackend{b}
+	return a.call(ctx, backends, req, concludeFinal, ConcludeFinal)
 }
 
 type adjFunc = func(
@@ -250,18 +233,18 @@ type adjFunc = func(
 // call calls the given contract function `fn` with the data from `req`.
 // `fn` should be a method of `a.contract`, like `a.contract.Register`.
 // `txType` should be one of the valid transaction types defined in the client package.
-func (a *Adjudicator) call(ctx context.Context, backends []adjudicatorBackend, req channel.AdjudicatorReq, fn adjFunc, txType OnChainTxType) error {
+func (*Adjudicator) call(ctx context.Context, backends []adjudicatorBackend, req channel.AdjudicatorReq, fn adjFunc, txType OnChainTxType) error {
 	for _, b := range backends {
 		ethParams := ToEthParams(req.Params)
 		ethState := ToEthState(req.Tx.State)
 
 		tx, err := func() (*types.Transaction, error) {
-			if !a.mu.TryLockCtx(ctx) {
+			if !b.mu.TryLockCtx(ctx) {
 				return nil, errors.Wrap(ctx.Err(), "context canceled while acquiring tx lock")
 			}
-			defer a.mu.Unlock()
+			defer b.mu.Unlock()
 
-			trans, err := b.backend.NewTransactor(ctx, GasLimit, a.txSender)
+			trans, err := b.backend.NewTransactor(ctx, GasLimit, b.txSender)
 			if err != nil {
 				return nil, errors.WithMessage(err, "creating transactor")
 			}
@@ -277,7 +260,7 @@ func (a *Adjudicator) call(ctx context.Context, backends []adjudicatorBackend, r
 			return err
 		}
 
-		_, err = b.backend.ConfirmTransaction(ctx, tx, a.txSender)
+		_, err = b.backend.ConfirmTransaction(ctx, tx, b.txSender)
 		if errors.Is(err, errTxTimedOut) {
 			err = client.NewTxTimedoutError(txType.String(), tx.Hash().Hex(), err.Error())
 		} else if err != nil {

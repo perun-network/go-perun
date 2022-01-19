@@ -47,6 +47,12 @@ func (a *Adjudicator) ensureWithdrawn(ctx context.Context, req channel.Adjudicat
 	g, ctx := errgroup.WithContext(ctx)
 
 	for index, asset := range req.Tx.Allocation.Assets {
+		ethAsset := asset.(*Asset)
+		b, ok := a.backends[ethAsset.chainID.MapKey()]
+		if !ok {
+			return errors.Errorf("no backend registered for chain ID: %v", ethAsset.chainID)
+		}
+
 		// Skip zero balance withdrawals
 		if req.Tx.Allocation.Balances[index][req.Idx].Sign() == 0 {
 			a.log.WithFields(log.Fields{"channel": req.Params.ID, "idx": req.Idx}).Debug("Skipped zero withdrawing.")
@@ -55,11 +61,11 @@ func (a *Adjudicator) ensureWithdrawn(ctx context.Context, req channel.Adjudicat
 		index, asset := index, asset // Capture variables locally for usage in closure
 		g.Go(func() error {
 			// Create subscription
-			contract := bindAssetHolder(a.ContractBackend, asset, channel.Index(index))
+			contract := bindAssetHolder(*b.backend, asset, channel.Index(index))
 			fundingID := FundingIDs(req.Params.ID(), req.Params.Parts[req.Idx])[0]
 			events := make(chan *subscription.Event, adjEventBuffSize)
 			subErr := make(chan error, 1)
-			sub, err := subscription.Subscribe(ctx, a.ContractBackend, contract.contract, withdrawnEventType(fundingID), startBlockOffset, a.txFinalityDepth)
+			sub, err := subscription.Subscribe(ctx, b.backend, contract.contract, withdrawnEventType(fundingID), startBlockOffset, b.backend.txFinalityDepth)
 			if err != nil {
 				return errors.WithMessage(err, "subscribing")
 			}
@@ -76,7 +82,7 @@ func (a *Adjudicator) ensureWithdrawn(ctx context.Context, req channel.Adjudicat
 			}
 
 			// No withdrawn event found in the past, send transaction.
-			if err := a.callAssetWithdraw(ctx, req, contract); err != nil {
+			if err := a.callAssetWithdrawBackend(ctx, b, req, contract); err != nil {
 				return errors.WithMessage(err, "withdrawing assets failed")
 			}
 
@@ -122,22 +128,17 @@ func bindAssetHolder(cb ContractBackend, asset channel.Asset, assetIndex channel
 	return assetHolder{ctr, &assetAddr, contract, assetIndex, &cb}
 }
 
-func (a *Adjudicator) callAssetWithdraw(ctx context.Context, request channel.AdjudicatorReq, asset assetHolder) error {
-	b, ok := a.backends[asset.MapKey()]
-	if !ok {
-		return errors.Errorf("no backend registered for asset: %v", asset)
-	}
-
+func (a *Adjudicator) callAssetWithdrawBackend(ctx context.Context, b adjudicatorBackend, request channel.AdjudicatorReq, asset assetHolder) error {
 	auth, sig, err := a.newWithdrawalAuth(request, asset)
 	if err != nil {
 		return errors.WithMessage(err, "creating withdrawal auth")
 	}
 	tx, err := func() (*types.Transaction, error) {
-		if !a.mu.TryLockCtx(ctx) {
+		if !b.mu.TryLockCtx(ctx) {
 			return nil, errors.Wrap(ctx.Err(), "context canceled while acquiring tx lock")
 		}
-		defer a.mu.Unlock()
-		trans, err := b.backend.NewTransactor(ctx, GasLimit, a.txSender)
+		defer b.mu.Unlock()
+		trans, err := b.backend.NewTransactor(ctx, GasLimit, b.txSender)
 		if err != nil {
 			return nil, errors.WithMessagef(err, "creating transactor for asset %d", asset.assetIndex)
 		}
@@ -153,7 +154,7 @@ func (a *Adjudicator) callAssetWithdraw(ctx context.Context, request channel.Adj
 	if err != nil {
 		return err
 	}
-	_, err = b.backend.ConfirmTransaction(ctx, tx, a.txSender)
+	_, err = b.backend.ConfirmTransaction(ctx, tx, b.txSender)
 	if err != nil && errors.Is(err, errTxTimedOut) {
 		err = client.NewTxTimedoutError(Withdraw.String(), tx.Hash().Hex(), err.Error())
 	}

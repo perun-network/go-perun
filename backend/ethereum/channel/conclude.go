@@ -27,6 +27,7 @@ import (
 	"perun.network/go-perun/backend/ethereum/subscription"
 	"perun.network/go-perun/channel"
 	"perun.network/go-perun/log"
+	perrors "polycry.pt/poly-go/errors"
 )
 
 const (
@@ -43,7 +44,36 @@ const (
 //   - if none found, conclude/concludeFinal is called on the adjudicator
 // - it waits for a Concluded event from the blockchain.
 func (a *Adjudicator) ensureConcluded(ctx context.Context, req channel.AdjudicatorReq, subStates channel.StateMap) error {
-	sub, err := subscription.Subscribe(ctx, a.ContractBackend, a.bound, updateEventType(req.Params.ID()), startBlockOffset, a.txFinalityDepth)
+	// Gather backends for channel and subchannels.
+	backends := makeBackendSet(a)
+	err := backends.Add(req.Tx.Assets)
+	if err != nil {
+		return err
+	}
+	for _, sub := range subStates {
+		err := backends.Add(sub.Assets)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Ensure every backend concluded.
+	errg := perrors.NewGatherer()
+	for _, b := range backends.List() {
+		errg.Go(func() error {
+			return a.ensureConcludedBackend(ctx, b, req, subStates)
+		})
+	}
+	return errg.Wait()
+}
+
+func (a *Adjudicator) ensureConcludedBackend(
+	ctx context.Context,
+	b adjudicatorBackend,
+	req channel.AdjudicatorReq,
+	subStates channel.StateMap,
+) error {
+	sub, err := subscription.Subscribe(ctx, b.backend, b.bound, updateEventType(req.Params.ID()), startBlockOffset, b.backend.txFinalityDepth)
 	if err != nil {
 		return errors.WithMessage(err, "subscribing")
 	}
@@ -63,7 +93,7 @@ func (a *Adjudicator) ensureConcluded(ctx context.Context, req channel.Adjudicat
 		subErr <- sub.Read(ctx, events)
 	}()
 
-	concluded, err := a.waitConcludedSecondary(waitCtx, req, events)
+	concluded, err := a.waitConcludedSecondary(waitCtx, b, req, events)
 	if err != nil {
 		return errors.WithMessage(err, "waiting for secondary conclude")
 	} else if concluded {
@@ -71,7 +101,7 @@ func (a *Adjudicator) ensureConcluded(ctx context.Context, req channel.Adjudicat
 	}
 
 	// No conclude event found in the past, send transaction.
-	err = a.conclude(ctx, req, subStates)
+	err = a.concludeBackend(ctx, b, req, subStates)
 	if err != nil {
 		return errors.WithMessage(err, "concluding")
 	}
@@ -98,27 +128,27 @@ func (a *Adjudicator) ensureConcluded(ctx context.Context, req channel.Adjudicat
 	}
 }
 
-func (a *Adjudicator) waitConcludedSecondary(ctx context.Context, req channel.AdjudicatorReq, events chan *subscription.Event) (concluded bool, err error) {
+func (a *Adjudicator) waitConcludedSecondary(ctx context.Context, b adjudicatorBackend, req channel.AdjudicatorReq, events chan *subscription.Event) (concluded bool, err error) {
 	// In final Register calls, as the non-initiator, we optimistically wait for
 	// the other party to send the transaction first for
 	// `secondaryWaitBlocks + TxFinalityDepth` many blocks.
 	if req.Tx.IsFinal && req.Secondary {
-		waitBlocks := secondaryWaitBlocks + int(a.txFinalityDepth)
-		return waitConcludedForNBlocks(ctx, a, events, waitBlocks)
+		waitBlocks := secondaryWaitBlocks + int(b.backend.txFinalityDepth)
+		return waitConcludedForNBlocks(ctx, b.backend, events, waitBlocks)
 	}
 	return false, nil
 }
 
-func (a *Adjudicator) conclude(ctx context.Context, req channel.AdjudicatorReq, subStates channel.StateMap) error {
+func (a *Adjudicator) concludeBackend(ctx context.Context, b adjudicatorBackend, req channel.AdjudicatorReq, subStates channel.StateMap) error {
 	// If the on-chain state resulted from forced execution, we do not have a fully-signed state and cannot call concludeFinal.
-	forceExecuted, err := a.isForceExecuted(ctx, req.Params.ID())
+	forceExecuted, err := a.isForceExecuted(ctx, b, req.Params.ID())
 	if err != nil {
 		return errors.WithMessage(err, "checking force execution")
 	}
 	if req.Tx.IsFinal && !forceExecuted {
-		err = errors.WithMessage(a.callConcludeFinal(ctx, req), "calling concludeFinal")
+		err = errors.WithMessage(a.callConcludeFinalBackend(ctx, b, req), "calling concludeFinal")
 	} else {
-		err = errors.WithMessage(a.callConclude(ctx, req, subStates), "calling conclude")
+		err = errors.WithMessage(a.callConcludeBackend(ctx, b, req, subStates), "calling conclude")
 	}
 	if IsErrTxFailed(err) {
 		a.log.WithError(err).Warn("Calling conclude(Final) failed, waiting for event anyways...")
@@ -151,10 +181,10 @@ func (a *Adjudicator) isConcluded(ctx context.Context, sub *subscription.Resista
 }
 
 // isForceExecuted returns whether a channel is in the forced execution phase.
-func (a *Adjudicator) isForceExecuted(_ctx context.Context, c channel.ID) (bool, error) {
+func (a *Adjudicator) isForceExecuted(_ctx context.Context, b adjudicatorBackend, c channel.ID) (bool, error) {
 	ctx, cancel := context.WithCancel(_ctx)
 	defer cancel()
-	sub, err := subscription.NewEventSub(ctx, a.ContractBackend, a.bound, updateEventType(c), startBlockOffset)
+	sub, err := subscription.NewEventSub(ctx, b.backend, b.bound, updateEventType(c), startBlockOffset)
 	if err != nil {
 		return false, errors.WithMessage(err, "subscribing")
 	}
