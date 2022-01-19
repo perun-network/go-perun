@@ -40,7 +40,7 @@ import (
 func Test_StartWatching(t *testing.T) {
 	rng := test.Prng(t)
 	rs := &mock.RegisterSubscriber{}
-	rs.On("Subscribe", testifyMock.Anything, testifyMock.Anything).Return(&ethChannel.RegisteredSub{}, nil)
+	rs.On("Subscribe", testifyMock.Anything, testifyMock.Anything).Return(&ethChannel.AdjudicatorBackendSub{}, nil)
 
 	t.Run("ledger_channel", func(t *testing.T) {
 		// Setup
