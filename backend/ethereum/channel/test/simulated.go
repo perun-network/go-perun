@@ -27,7 +27,6 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/params"
 	"github.com/pkg/errors"
 
 	"perun.network/go-perun/channel"
@@ -57,6 +56,7 @@ type SimulatedBackend struct {
 	clockMu    sync.Mutex    // Mutex for clock adjustments. Locked by SimTimeouts.
 	mining     chan struct{} // Used for auto-mining blocks.
 	commitTx   bool          // Whether each transaction is committed.
+	gasPrice   *big.Int
 }
 
 type (
@@ -93,6 +93,7 @@ func NewSimulatedBackend(opts ...SimBackendOpt) *SimulatedBackend {
 		faucetKey:        sk,
 		faucetAddr:       faucetAddr,
 		commitTx:         true,
+		gasPrice:         big.NewInt(GasPrice),
 	}
 	for _, opt := range opts {
 		opt(sb)
@@ -101,8 +102,8 @@ func NewSimulatedBackend(opts ...SimBackendOpt) *SimulatedBackend {
 }
 
 // SuggestGasPrice always returns `GasPrice`.
-func (*SimulatedBackend) SuggestGasPrice(context.Context) (*big.Int, error) {
-	return big.NewInt(GasPrice), nil
+func (b *SimulatedBackend) SuggestGasPrice(context.Context) (*big.Int, error) {
+	return b.gasPrice, nil
 }
 
 // SendTransaction executes a transaction.
@@ -123,7 +124,7 @@ func (s *SimulatedBackend) FundAddress(ctx context.Context, addr common.Address)
 		panic(err)
 	}
 	tx := types.NewTransaction(nonce, addr, test.MaxBalance, GasLimit, big.NewInt(GasPrice), nil)
-	signer := types.NewEIP155Signer(params.AllEthashProtocolChanges.ChainID)
+	signer := types.NewEIP155Signer(s.Blockchain().Config().ChainID)
 	signedTX, err := types.SignTx(tx, signer, s.faucetKey)
 	if err != nil {
 		panic(err)
@@ -227,4 +228,8 @@ func (s *SimulatedBackend) Reorg(ctx context.Context, depth uint64, reorder Reor
 // mine a block after a transaction was sent.
 func WithCommitTx(b bool) SimBackendOpt {
 	return func(sb *SimulatedBackend) { sb.commitTx = b }
+}
+
+func WithGasPrice(v *big.Int) SimBackendOpt {
+	return func(sb *SimulatedBackend) { sb.gasPrice = v }
 }

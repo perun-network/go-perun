@@ -302,3 +302,7 @@ var ErrInvalidContractCode = stderrors.New("invalid bytecode at address")
 func IsErrInvalidContractCode(err error) bool {
 	return errors.Is(err, ErrInvalidContractCode)
 }
+
+func (b ContractBackend) TxFinalityDepth() uint64 {
+	return b.txFinalityDepth
+}

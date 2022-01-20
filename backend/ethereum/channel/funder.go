@@ -151,7 +151,7 @@ func (f *Funder) Fund(ctx context.Context, request channel.FundingReq) error {
 			f.log.Warn("Fund: time out")
 			cancel() // cancel funding context on funding timeout
 		case <-ctx.Done():
-			f.log.Warnf("Fund: context done: %v", ctx.Err())
+			// We return once the surrounding function is done.
 		}
 	}()
 

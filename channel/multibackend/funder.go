@@ -45,6 +45,7 @@ func (f *Funder) Fund(ctx context.Context, req channel.FundingReq) error {
 	for _, subf := range funders {
 		// TODO: Need to adapt each funder implementations so that it
 		// understands when an asset is not available on a network.
+		subf := subf
 		g.Go(func() error { return subf.Fund(ctx, req) })
 	}
 

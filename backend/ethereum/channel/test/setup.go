@@ -114,13 +114,12 @@ func NewSetup(t *testing.T, rng *rand.Rand, n int, blockInterval time.Duration, 
 	s.Asset = ethchannel.NewAssetFromEth(chainID.Int, ethAsset)
 
 	ksWallet := wallettest.RandomWallet().(*keystore.Wallet)
-	require.NoErrorf(t, err, "initializing wallet from test keystore")
 	for i := 0; i < n; i++ {
 		s.Accs[i] = ksWallet.NewRandomAccount(rng).(*keystore.Account)
 		s.Parts[i] = s.Accs[i].Address()
 		s.SimBackend.FundAddress(ctx, s.Accs[i].Account.Address)
 		s.Recvs[i] = ksWallet.NewRandomAccount(rng).Address().(*ethwallet.Address)
-		signer := types.NewEIP155Signer(params.AllEthashProtocolChanges.ChainID)
+		signer := types.NewEIP155Signer(s.SimBackend.Blockchain().Config().ChainID)
 		cb := ethchannel.NewContractBackend(
 			s.SimBackend,
 			keystore.NewTransactor(*ksWallet, signer),

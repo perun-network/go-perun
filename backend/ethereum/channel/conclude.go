@@ -60,6 +60,7 @@ func (a *Adjudicator) ensureConcluded(ctx context.Context, req channel.Adjudicat
 	// Ensure every backend concluded.
 	errg := perrors.NewGatherer()
 	for _, b := range backends.List() {
+		b := b
 		errg.Go(func() error {
 			return a.ensureConcludedBackend(ctx, b, req, subStates)
 		})
