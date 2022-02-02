@@ -90,7 +90,7 @@ func TestMultiLedgerHappy(t *testing.T) {
 	errs := make(chan error)
 	var channelHandler client.ProposalHandlerFunc = func(cp client.ChannelProposal, pr *client.ProposalResponder) {
 		switch cp := cp.(type) {
-		case *client.LedgerChannelProposal:
+		case *client.LedgerChannelProposalMsg:
 			ch, err := pr.Accept(ctx, cp.Accept(bob.wireAddress, client.WithRandomNonce()))
 			if err != nil {
 				errs <- errors.WithMessage(err, "accepting ledger channel proposal")
@@ -124,21 +124,18 @@ func TestMultiLedgerHappy(t *testing.T) {
 	}
 
 	// Update channel.
-	err = chAliceBob.Update(ctx, func(s *channel.State) error {
+	err = chAliceBob.Update(ctx, func(s *channel.State) {
 		s.Balances = updateBals1
-		return nil
 	})
 	require.NoError(err)
 
-	chBobAlice.Update(ctx, func(s *channel.State) error {
+	chBobAlice.Update(ctx, func(s *channel.State) {
 		s.Balances = updateBals2
-		return nil
 	})
 	require.NoError(err)
 
-	err = chAliceBob.Update(ctx, func(s *channel.State) error {
+	err = chAliceBob.Update(ctx, func(s *channel.State) {
 		s.IsFinal = true
-		return nil
 	})
 	require.NoError(err)
 
