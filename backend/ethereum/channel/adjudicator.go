@@ -125,11 +125,11 @@ func (s backendSet) Add(assets ...[]channel.Asset) error {
 	for _, assetList := range assets {
 		for _, asset := range assetList {
 			ethAsset := asset.(*Asset)
-			b, ok := s.a.backends[ethAsset.chainID.MapKey()]
+			b, ok := s.a.backends[ethAsset.ChainID.MapKey()]
 			if !ok {
-				return errors.Errorf("no backend registered for chain ID: %v", ethAsset.chainID)
+				return errors.Errorf("no backend registered for chain ID: %v", ethAsset.ChainID)
 			}
-			s.m[ethAsset.chainID.MapKey()] = b
+			s.m[ethAsset.ChainID.MapKey()] = b
 		}
 	}
 	return nil

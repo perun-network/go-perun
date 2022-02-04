@@ -48,9 +48,9 @@ func (a *Adjudicator) ensureWithdrawn(ctx context.Context, req channel.Adjudicat
 
 	for index, asset := range req.Tx.Allocation.Assets {
 		ethAsset := asset.(*Asset)
-		b, ok := a.backends[ethAsset.chainID.MapKey()]
+		b, ok := a.backends[ethAsset.ChainID.MapKey()]
 		if !ok {
-			return errors.Errorf("no backend registered for chain ID: %v", ethAsset.chainID)
+			return errors.Errorf("no backend registered for chain ID: %v", ethAsset.ChainID)
 		}
 
 		// Skip zero balance withdrawals

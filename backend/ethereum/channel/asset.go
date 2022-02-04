@@ -67,7 +67,7 @@ type (
 	// Asset is an Ethereum asset.
 	Asset struct {
 		wallet.Address
-		chainID ChainID
+		ChainID ChainID
 	}
 
 	AssetMapKey string
@@ -84,7 +84,7 @@ func (a Asset) MapKey() AssetMapKey {
 
 func (a Asset) MarshalBinary() ([]byte, error) {
 	var buf bytes.Buffer
-	err := perunio.Encode(&buf, &a.Address, a.chainID)
+	err := perunio.Encode(&buf, &a.Address, a.ChainID)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +93,7 @@ func (a Asset) MarshalBinary() ([]byte, error) {
 
 func (a *Asset) UnmarshalBinary(data []byte) error {
 	buf := bytes.NewBuffer(data)
-	return perunio.Decode(buf, &a.Address, &a.chainID)
+	return perunio.Decode(buf, &a.Address, &a.ChainID)
 }
 
 // NewAssetFromEth creates a new asset from an Ethereum address.

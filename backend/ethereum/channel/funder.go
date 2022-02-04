@@ -163,7 +163,7 @@ func (f *Funder) Fund(ctx context.Context, request channel.FundingReq) error {
 		ethAsset := *asset.(*Asset)
 		for i, tx := range txs[a] {
 			acc := f.accounts[ethAsset.MapKey()]
-			cb := f.backends[ethAsset.chainID.MapKey()]
+			cb := f.backends[ethAsset.ChainID.MapKey()]
 			if _, err := cb.ConfirmTransaction(ctx, tx, acc); err != nil {
 				if errors.Is(err, errTxTimedOut) {
 					err = client.NewTxTimedoutError(Fund.String(), tx.Hash().Hex(), err.Error())
@@ -202,7 +202,7 @@ func (f *Funder) fundAssets(ctx context.Context, channelID channel.ID, req chann
 	for index, asset := range req.State.Assets {
 		// Bind contract.
 		ethAsset := asset.(*Asset)
-		cb := f.backends[ethAsset.chainID.MapKey()]
+		cb := f.backends[ethAsset.ChainID.MapKey()]
 		contract := bindAssetHolder(*cb, asset, channel.Index(index))
 		// Wait for the funding event.
 		errg.Go(func() error {
@@ -239,7 +239,7 @@ func (f *Funder) sendFundingTx(ctx context.Context, request channel.FundingReq, 
 		return nil, nil
 	}
 
-	return f.deposit(ctx, bal, *NewAssetFromEth(asset.chainID.Int, asset.EthAddress()), fundingID)
+	return f.deposit(ctx, bal, *NewAssetFromEth(asset.ChainID.Int, asset.EthAddress()), fundingID)
 }
 
 // deposit deposits funds for one funding-ID by calling the associated Depositor.
@@ -254,7 +254,7 @@ func (f *Funder) deposit(ctx context.Context, bal *big.Int, asset Asset, funding
 		return nil, errors.Errorf("could not find account for asset #%d", asset)
 	}
 
-	cb := f.backends[asset.chainID.MapKey()]
+	cb := f.backends[asset.ChainID.MapKey()]
 	return depositor.Deposit(ctx, *NewDepositReq(bal, *cb, asset, acc, fundingID))
 }
 
