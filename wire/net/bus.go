@@ -32,6 +32,7 @@ type Bus struct {
 	mainRecv *wire.Receiver
 	recvs    map[wallet.AddrKey]wire.Consumer
 	mutex    sync.RWMutex // Protects reg, recv.
+	ser      wire.EnvelopeSerializer
 }
 
 const (
@@ -45,14 +46,15 @@ const (
 
 // NewBus creates a new network bus. The dialer and listener are used to
 // establish new connections internally, while id is this node's identity.
-func NewBus(id wire.Account, d Dialer) *Bus {
+func NewBus(id wire.Account, d Dialer, s wire.EnvelopeSerializer) *Bus {
 	b := &Bus{
 		mainRecv: wire.NewReceiver(),
 		recvs:    make(map[wallet.AddrKey]wire.Consumer),
+		ser:      s,
 	}
 
 	onNewEndpoint := func(wire.Address) wire.Consumer { return b.mainRecv }
-	b.reg = NewEndpointRegistry(id, onNewEndpoint, d)
+	b.reg = NewEndpointRegistry(id, onNewEndpoint, d, s)
 	go b.dispatchMsgs()
 
 	return b
