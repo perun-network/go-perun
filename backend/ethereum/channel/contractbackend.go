@@ -153,7 +153,7 @@ func (c *ContractBackend) NewTransactor(ctx context.Context, gasLimit uint64,
 	auth.GasLimit = gasLimit
 	auth.Context = ctx
 
-	nonce, err := c.PendingNonceAt(ctx, acc.Address)
+	nonce, err := c.PendingNonceAt(ctx, auth.From)
 	if err != nil {
 		err = cherrors.CheckIsChainNotReachableError(err)
 		return nil, errors.WithMessage(err, "fetching nonce")
