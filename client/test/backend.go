@@ -35,7 +35,7 @@ type (
 		rng          rng
 		mu           sync.Mutex
 		latestEvents map[channel.ID]channel.AdjudicatorEvent
-		eventSubs    map[channel.ID][]*mockSubscription
+		eventSubs    map[channel.ID][]*MockSubscription
 		balances     map[addressMapKey]map[assetMapKey]*big.Int
 	}
 
@@ -58,7 +58,7 @@ func NewMockBackend(rng *rand.Rand) *MockBackend {
 		log:          log.Default(),
 		rng:          newThreadSafePrng(rng),
 		latestEvents: make(map[channel.ID]channel.AdjudicatorEvent),
-		eventSubs:    make(map[channel.ID][]*mockSubscription),
+		eventSubs:    make(map[channel.ID][]*MockSubscription),
 		balances:     make(map[string]map[string]*big.Int),
 	}
 }
@@ -340,11 +340,7 @@ func (b *MockBackend) Subscribe(ctx context.Context, chID channel.ID) (channel.A
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	sub := &mockSubscription{
-		ctx:    ctx,
-		events: make(chan channel.AdjudicatorEvent, 1),
-		err:    make(chan error, 1),
-	}
+	sub := NewMockSubscription(ctx)
 	sub.onClose = func() { b.removeSubscription(chID, sub) }
 	b.eventSubs[chID] = append(b.eventSubs[chID], sub)
 
@@ -356,7 +352,7 @@ func (b *MockBackend) Subscribe(ctx context.Context, chID channel.ID) (channel.A
 	return sub, nil
 }
 
-func (b *MockBackend) removeSubscription(ch channel.ID, sub *mockSubscription) {
+func (b *MockBackend) removeSubscription(ch channel.ID, sub *MockSubscription) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -379,14 +375,22 @@ func (b *MockBackend) removeSubscription(ch channel.ID, sub *mockSubscription) {
 	b.eventSubs[ch] = append(subs[:i], subs[i+1:]...)
 }
 
-type mockSubscription struct {
+type MockSubscription struct {
 	ctx     context.Context
 	events  chan channel.AdjudicatorEvent
 	err     chan error
 	onClose func()
 }
 
-func (s *mockSubscription) Next() channel.AdjudicatorEvent {
+func NewMockSubscription(ctx context.Context) *MockSubscription {
+	return &MockSubscription{
+		ctx:    ctx,
+		events: make(chan channel.AdjudicatorEvent, 1),
+		err:    make(chan error, 1),
+	}
+}
+
+func (s *MockSubscription) Next() channel.AdjudicatorEvent {
 	select {
 	case e := <-s.events:
 		return e
@@ -396,13 +400,13 @@ func (s *mockSubscription) Next() channel.AdjudicatorEvent {
 	}
 }
 
-func (s *mockSubscription) Close() error {
+func (s *MockSubscription) Close() error {
 	s.onClose()
 	close(s.events)
 	close(s.err)
 	return nil
 }
 
-func (s *mockSubscription) Err() error {
+func (s *MockSubscription) Err() error {
 	return <-s.err
 }
