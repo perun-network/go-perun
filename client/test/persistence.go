@@ -209,6 +209,10 @@ func (r *multiClientRole) assertPersistedPeerAndChannel(cfg ExecConfig, state *c
 	r.RequireNoError(restoredCh.CurrentTXV.State.Equal(state))
 }
 
+func (r *multiClientRole) Errors() <-chan error {
+	return r.errs
+}
+
 type addresses []wire.Address
 
 func (a addresses) contains(b wire.Address) bool {

@@ -53,3 +53,7 @@ func (r *Responder) Execute(cfg ExecConfig, exec func(ExecConfig, *paymentChanne
 
 	r.RequireNoError(ch.Close())
 }
+
+func (r *Responder) Errors() <-chan error {
+	return r.errs
+}
