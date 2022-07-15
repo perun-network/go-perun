@@ -20,7 +20,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"perun.network/go-perun/channel"
@@ -40,18 +39,6 @@ func TestMultiLedgerDispute(
 ) {
 	require := require.New(t)
 	alice, bob := mlt.Client1, mlt.Client2
-
-	// Store client balances before running test.
-	balancesBefore := channel.Balances{
-		{
-			mlt.BalanceReader1.Balance(alice.ReceiverAddress, mlt.Asset1),
-			mlt.BalanceReader1.Balance(bob.ReceiverAddress, mlt.Asset1),
-		},
-		{
-			mlt.BalanceReader2.Balance(alice.ReceiverAddress, mlt.Asset2),
-			mlt.BalanceReader2.Balance(bob.ReceiverAddress, mlt.Asset2),
-		},
-	}
 
 	// Define initial balances.
 	//nolint:gomnd // We allow the balances to be magic numbers.
@@ -141,48 +128,8 @@ func TestMultiLedgerDispute(
 	require.NoError(err)
 
 	// Check final balances.
-	balancesAfter := channel.Balances{
-		{
-			mlt.BalanceReader1.Balance(alice.ReceiverAddress, mlt.Asset1),
-			mlt.BalanceReader1.Balance(bob.ReceiverAddress, mlt.Asset1),
-		},
-		{
-			mlt.BalanceReader2.Balance(alice.ReceiverAddress, mlt.Asset2),
-			mlt.BalanceReader2.Balance(bob.ReceiverAddress, mlt.Asset2),
-		},
-	}
-
-	balancesDiff := balancesAfter.Sub(balancesBefore)
-	expectedBalancesDiff := updateBals1.Sub(initBals)
-	eq := EqualBalancesWithDelta(expectedBalancesDiff, balancesDiff, mlt.BalanceDelta)
-	assert.Truef(t, eq, "final ledger balances incorrect: expected balance difference %v +- %v, got %v", expectedBalancesDiff, mlt.BalanceDelta, balancesDiff)
-}
-
-// EqualBalancesWithDelta checks whether the given balances are equal up to
-// delta.
-func EqualBalancesWithDelta(
-	bals1 channel.Balances,
-	bals2 channel.Balances,
-	delta channel.Bal,
-) bool {
-	if len(bals1) != len(bals2) {
-		return false
-	}
-
-	for i, assetBals1 := range bals1 {
-		assetBals2 := bals2[i]
-		if len(assetBals1) != len(assetBals2) {
-			return false
-		}
-
-		for j, bal1 := range assetBals1 {
-			bal2 := assetBals2[j]
-			lb := new(big.Int).Sub(bal1, delta)
-			ub := new(big.Int).Add(bal1, delta)
-			if bal2.Cmp(lb) < 0 || bal2.Cmp(ub) > 0 {
-				return false
-			}
-		}
-	}
-	return true
+	require.True(mlt.BalanceReader1.Balance(alice.ReceiverAddress, mlt.Asset1).Cmp(updateBals1[0][0]) == 0)
+	require.True(mlt.BalanceReader1.Balance(bob.ReceiverAddress, mlt.Asset1).Cmp(updateBals1[0][1]) == 0)
+	require.True(mlt.BalanceReader2.Balance(alice.ReceiverAddress, mlt.Asset2).Cmp(updateBals1[1][0]) == 0)
+	require.True(mlt.BalanceReader2.Balance(bob.ReceiverAddress, mlt.Asset2).Cmp(updateBals1[1][1]) == 0)
 }
