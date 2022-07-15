@@ -126,6 +126,7 @@ type Client struct {
 	*client.Client
 	WireAddress                wire.Address
 	WalletAddress              wallet.Address
+	ReceiverAddress            wallet.Address
 	Events                     chan channel.AdjudicatorEvent
 	Adjudicator1, Adjudicator2 channel.Adjudicator
 }

@@ -22,6 +22,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"perun.network/go-perun/channel"
 	"perun.network/go-perun/client"
 	"perun.network/go-perun/wire"
@@ -43,12 +44,12 @@ func TestMultiLedgerDispute(
 	// Store client balances before running test.
 	balancesBefore := channel.Balances{
 		{
-			mlt.BalanceReader1.Balance(alice.WalletAddress, mlt.Asset1),
-			mlt.BalanceReader1.Balance(bob.WalletAddress, mlt.Asset1),
+			mlt.BalanceReader1.Balance(alice.ReceiverAddress, mlt.Asset1),
+			mlt.BalanceReader1.Balance(bob.ReceiverAddress, mlt.Asset1),
 		},
 		{
-			mlt.BalanceReader2.Balance(alice.WalletAddress, mlt.Asset2),
-			mlt.BalanceReader2.Balance(bob.WalletAddress, mlt.Asset2),
+			mlt.BalanceReader2.Balance(alice.ReceiverAddress, mlt.Asset2),
+			mlt.BalanceReader2.Balance(bob.ReceiverAddress, mlt.Asset2),
 		},
 	}
 
@@ -142,12 +143,12 @@ func TestMultiLedgerDispute(
 	// Check final balances.
 	balancesAfter := channel.Balances{
 		{
-			mlt.BalanceReader1.Balance(alice.WalletAddress, mlt.Asset1),
-			mlt.BalanceReader1.Balance(bob.WalletAddress, mlt.Asset1),
+			mlt.BalanceReader1.Balance(alice.ReceiverAddress, mlt.Asset1),
+			mlt.BalanceReader1.Balance(bob.ReceiverAddress, mlt.Asset1),
 		},
 		{
-			mlt.BalanceReader2.Balance(alice.WalletAddress, mlt.Asset2),
-			mlt.BalanceReader2.Balance(bob.WalletAddress, mlt.Asset2),
+			mlt.BalanceReader2.Balance(alice.ReceiverAddress, mlt.Asset2),
+			mlt.BalanceReader2.Balance(bob.ReceiverAddress, mlt.Asset2),
 		},
 	}
 
