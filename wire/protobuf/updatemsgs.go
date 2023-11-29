@@ -136,7 +136,7 @@ func ToState(protoState *State) (state *channel.State, err error) {
 	copy(state.ID[:], protoState.Id)
 	state.Version = protoState.Version
 	state.IsFinal = protoState.IsFinal
-	allocation, err := toAllocation(protoState.Allocation)
+	allocation, err := ToAllocation(protoState.Allocation)
 	if err != nil {
 		return nil, errors.WithMessage(err, "allocation")
 	}
@@ -206,7 +206,7 @@ func fromChannelUpdate(update *client.ChannelUpdateMsg) (protoUpdate *ChannelUpd
 	protoUpdate.ChannelUpdate.ActorIdx = uint32(update.ChannelUpdate.ActorIdx)
 	protoUpdate.Sig = make([]byte, len(update.Sig))
 	copy(protoUpdate.Sig, update.Sig)
-	protoUpdate.ChannelUpdate.State, err = fromState(update.ChannelUpdate.State)
+	protoUpdate.ChannelUpdate.State, err = FromState(update.ChannelUpdate.State)
 	return protoUpdate, err
 }
 
@@ -221,7 +221,7 @@ func fromSignedState(signedState *channel.SignedState) (protoSignedState *Signed
 	if err != nil {
 		return nil, err
 	}
-	protoSignedState.State, err = fromState(signedState.State)
+	protoSignedState.State, err = FromState(signedState.State)
 	return protoSignedState, err
 }
 
@@ -240,7 +240,7 @@ func fromParams(params *channel.Params) (protoParams *Params, err error) {
 	return protoParams, err
 }
 
-func fromState(state *channel.State) (protoState *State, err error) {
+func FromState(state *channel.State) (protoState *State, err error) {
 	protoState = &State{}
 
 	protoState.Id = make([]byte, len(state.ID))

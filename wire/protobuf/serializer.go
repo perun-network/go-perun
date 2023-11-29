@@ -47,7 +47,7 @@ func (serializer) Encode(w io.Writer, env *wire.Envelope) (err error) { //nolint
 	case *wire.AuthResponseMsg:
 		protoEnv.Msg = &Envelope_AuthResponseMsg{}
 	case *client.LedgerChannelProposalMsg:
-		protoEnv.Msg, err = fromLedgerChannelProposalMsg(msg)
+		protoEnv.Msg, err = FromLedgerChannelProposalMsg(msg)
 	case *client.SubChannelProposalMsg:
 		protoEnv.Msg, err = fromSubChannelProposalMsg(msg)
 	case *client.VirtualChannelProposalMsg:

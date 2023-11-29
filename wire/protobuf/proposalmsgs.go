@@ -146,7 +146,7 @@ func toBaseChannelProposal(protoProp *BaseChannelProposal) (prop client.BaseChan
 	prop.ChallengeDuration = protoProp.ChallengeDuration
 	copy(prop.ProposalID[:], protoProp.ProposalId)
 	copy(prop.NonceShare[:], protoProp.NonceShare)
-	prop.InitBals, err = toAllocation(protoProp.InitBals)
+	prop.InitBals, err = ToAllocation(protoProp.InitBals)
 	if err != nil {
 		return prop, errors.WithMessage(err, "init bals")
 	}
@@ -197,7 +197,7 @@ func toAppAndData(protoApp, protoData []byte) (app channel.App, data channel.Dat
 	return app, data, data.UnmarshalBinary(protoData)
 }
 
-func toAllocation(protoAlloc *Allocation) (alloc *channel.Allocation, err error) {
+func ToAllocation(protoAlloc *Allocation) (alloc *channel.Allocation, err error) {
 	alloc = &channel.Allocation{}
 	alloc.Assets = make([]channel.Asset, len(protoAlloc.Assets))
 	for i := range protoAlloc.Assets {
@@ -209,7 +209,7 @@ func toAllocation(protoAlloc *Allocation) (alloc *channel.Allocation, err error)
 	}
 	alloc.Locked = make([]channel.SubAlloc, len(protoAlloc.Locked))
 	for i := range protoAlloc.Locked {
-		alloc.Locked[i], err = toSubAlloc(protoAlloc.Locked[i])
+		alloc.Locked[i], err = ToSubAlloc(protoAlloc.Locked[i])
 		if err != nil {
 			return nil, errors.WithMessagef(err, "%d'th sub alloc", i)
 		}
@@ -235,7 +235,7 @@ func toBalance(protoBalance *Balance) (balance []channel.Bal) {
 	return balance
 }
 
-func toSubAlloc(protoSubAlloc *SubAlloc) (subAlloc channel.SubAlloc, err error) {
+func ToSubAlloc(protoSubAlloc *SubAlloc) (subAlloc channel.SubAlloc, err error) {
 	subAlloc = channel.SubAlloc{}
 	subAlloc.Bals = toBalance(protoSubAlloc.Bals)
 	if len(protoSubAlloc.Id) != len(subAlloc.ID) {
@@ -257,7 +257,7 @@ func toIndexMap(protoIndexMap []uint32) (indexMap []channel.Index, err error) {
 	return indexMap, nil
 }
 
-func fromLedgerChannelProposalMsg(msg *client.LedgerChannelProposalMsg) (_ *Envelope_LedgerChannelProposalMsg, err error) {
+func FromLedgerChannelProposalMsg(msg *client.LedgerChannelProposalMsg) (_ *Envelope_LedgerChannelProposalMsg, err error) {
 	protoMsg := &LedgerChannelProposalMsg{}
 	protoMsg.BaseChannelProposal, err = fromBaseChannelProposal(msg.BaseChannelProposal)
 	if err != nil {
