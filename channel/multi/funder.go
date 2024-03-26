@@ -24,29 +24,29 @@ import (
 
 // Funder is a multi-ledger funder.
 // funders is a map of LedgerIDs corresponding to a funder on some chain.
-// egoisticChains is a map of LedgerIDs corresponding to a boolean indicating whether the chain should be funded last.
+// EgoisticChains is a map of LedgerIDs corresponding to a boolean indicating whether the chain should be funded last.
 type Funder struct {
 	funders        map[LedgerIDMapKey]channel.Funder
-	egoisticChains map[LedgerIDMapKey]bool
+	EgoisticChains map[LedgerIDMapKey]bool
 }
 
 // NewFunder creates a new funder.
 func NewFunder() *Funder {
 	return &Funder{
 		funders:        make(map[LedgerIDMapKey]channel.Funder),
-		egoisticChains: make(map[LedgerIDMapKey]bool),
+		EgoisticChains: make(map[LedgerIDMapKey]bool),
 	}
 }
 
 // RegisterFunder registers a funder for a given ledger.
 func (f *Funder) RegisterFunder(l LedgerID, lf channel.Funder) {
 	f.funders[l.MapKey()] = lf
-	f.egoisticChains[l.MapKey()] = false
+	f.EgoisticChains[l.MapKey()] = false
 }
 
 // SetEgoisticChain sets the egoistic chain flag for a given ledger.
 func (f *Funder) SetEgoisticChain(l LedgerID, egoistic bool) {
-	f.egoisticChains[l.MapKey()] = egoistic
+	f.EgoisticChains[l.MapKey()] = egoistic
 }
 
 // Fund funds a multi-ledger channel. It dispatches funding calls to all
@@ -67,7 +67,7 @@ func (f *Funder) Fund(ctx context.Context, request channel.FundingReq) error {
 	var nonEgoisticLedgers []LedgerID
 
 	for _, l := range ledgers {
-		if f.egoisticChains[l.MapKey()] {
+		if f.EgoisticChains[l.MapKey()] {
 			egoisticLedgers = append(egoisticLedgers, l)
 		} else {
 			nonEgoisticLedgers = append(nonEgoisticLedgers, l)
