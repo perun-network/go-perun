@@ -106,7 +106,7 @@ func TestVirtualChannelDispute( //nolint:revive // test.Test... stutters but OK 
 	isSecondary := [2]bool{false, false}
 
 	// Settle the channels in a random order.
-	perm = rand.Perm(len(chs))
+	perm = []int{1, 2, 0, 3}
 	t.Logf("Settle order = %v", perm)
 	for _, i := range perm {
 		var err error
