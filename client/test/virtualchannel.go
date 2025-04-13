@@ -95,7 +95,7 @@ func TestVirtualChannelDispute( //nolint:revive // test.Test... stutters but OK 
 
 	chs := []*client.Channel{vct.chAliceIngrid, vct.chIngridAlice, vct.chBobIngrid, vct.chIngridBob}
 	// Register the channels in a random order.
-	perm := rand.Perm(len(chs))
+	perm := []int{2, 1, 0, 3}
 	t.Logf("perm = %v", perm)
 	for _, i := range perm {
 		err := client.NewTestChannel(chs[i]).Register(ctx)
@@ -128,6 +128,7 @@ func TestVirtualChannelDispute( //nolint:revive // test.Test... stutters but OK 
 			vct.ingrid.BalanceReader.Balance(vct.asset),
 		},
 	}
+	t.Log("balancesAfter:", balancesAfter)
 
 	balancesDiff := balancesAfter.Sub(vct.balancesBefore)
 	expectedBalancesDiff := channel.Balances{
