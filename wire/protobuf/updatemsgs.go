@@ -208,9 +208,9 @@ func FromChannelUpdateAccMsg(msg *client.ChannelUpdateAccMsg) *Envelope_ChannelU
 	protoMsg := &ChannelUpdateAccMsg{}
 
 	protoMsg.ChannelId = make([]byte, len(msg.ChannelID))
-	copy(protoMsg.GetChannelId(), msg.ChannelID[:])
+	copy(protoMsg.ChannelId, msg.ChannelID[:])
 	protoMsg.Sig = make([]byte, len(msg.Sig))
-	copy(protoMsg.GetSig(), msg.Sig)
+	copy(protoMsg.Sig, msg.Sig)
 	protoMsg.Version = msg.Version
 	return &Envelope_ChannelUpdateAccMsg{protoMsg}
 }
@@ -219,7 +219,7 @@ func FromChannelUpdateAccMsg(msg *client.ChannelUpdateAccMsg) *Envelope_ChannelU
 func FromChannelUpdateRejMsg(msg *client.ChannelUpdateRejMsg) *Envelope_ChannelUpdateRejMsg {
 	protoMsg := &ChannelUpdateRejMsg{}
 	protoMsg.ChannelId = make([]byte, len(msg.ChannelID))
-	copy(protoMsg.GetChannelId(), msg.ChannelID[:])
+	copy(protoMsg.ChannelId, msg.ChannelID[:])
 	protoMsg.Version = msg.Version
 	protoMsg.Reason = msg.Reason
 	return &Envelope_ChannelUpdateRejMsg{protoMsg}
@@ -232,7 +232,7 @@ func FromChannelUpdate(update *client.ChannelUpdateMsg) (protoUpdate *ChannelUpd
 
 	protoUpdate.ChannelUpdate.ActorIdx = uint32(update.ActorIdx)
 	protoUpdate.Sig = make([]byte, len(update.Sig))
-	copy(protoUpdate.GetSig(), update.Sig)
+	copy(protoUpdate.Sig, update.Sig)
 	protoUpdate.ChannelUpdate.State, err = FromState(update.State)
 	return protoUpdate, err
 }
@@ -244,7 +244,7 @@ func FromSignedState(signedState *channel.SignedState) (protoSignedState *Signed
 	protoSignedState.Sigs = make([][]byte, len(signedState.Sigs))
 	for i := range signedState.Sigs {
 		protoSignedState.Sigs[i] = make([]byte, len(signedState.Sigs[i]))
-		copy(protoSignedState.GetSigs()[i], signedState.Sigs[i])
+		copy(protoSignedState.Sigs[i], signedState.Sigs[i])
 	}
 	protoSignedState.Params, err = FromParams(signedState.Params)
 	if err != nil {
@@ -276,7 +276,7 @@ func FromState(state *channel.State) (protoState *State, err error) {
 	protoState = &State{}
 
 	protoState.Id = make([]byte, len(state.ID))
-	copy(protoState.GetId(), state.ID[:])
+	copy(protoState.Id, state.ID[:])
 	protoState.Version = state.Version
 	protoState.IsFinal = state.IsFinal
 	protoState.Allocation, err = FromAllocation(state.Allocation)
