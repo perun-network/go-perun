@@ -156,7 +156,8 @@ type (
 	}
 
 	// An AdjudicatorEvent is any event that an on-chain adjudicator call might
-	// cause, currently either a Registered or Progressed event.
+	// cause, currently either a Registered, Progressed, Coordinated, or
+	// Concluded event.
 	// The type of the event should be checked with a type switch.
 	AdjudicatorEvent interface {
 		ID() ID
@@ -191,6 +192,11 @@ type (
 
 	// ConcludedEvent signals channel conclusion.
 	ConcludedEvent struct {
+		AdjudicatorEventBase
+	}
+
+	// CoordinatedEvent signals successful cross-ledger coordination.
+	CoordinatedEvent struct {
 		AdjudicatorEventBase
 	}
 
@@ -262,6 +268,17 @@ func NewProgressedEvent(id ID, timeout Timeout, state *State, idx Index) *Progre
 // NewConcludedEvent creates a new ConcludedEvent.
 func NewConcludedEvent(id ID, timeout Timeout, version uint64) *ConcludedEvent {
 	return &ConcludedEvent{
+		AdjudicatorEventBase: AdjudicatorEventBase{
+			IDV:      id,
+			TimeoutV: timeout,
+			VersionV: version,
+		},
+	}
+}
+
+// NewCoordinatedEvent creates a new CoordinatedEvent.
+func NewCoordinatedEvent(id ID, timeout Timeout, version uint64) *CoordinatedEvent {
+	return &CoordinatedEvent{
 		AdjudicatorEventBase: AdjudicatorEventBase{
 			IDV:      id,
 			TimeoutV: timeout,
