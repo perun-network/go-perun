@@ -15,6 +15,7 @@
 package client
 
 import (
+	"encoding"
 	"math/rand"
 	"testing"
 
@@ -25,6 +26,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"perun.network/go-perun/channel"
+	"perun.network/go-perun/channel/multi"
 	channeltest "perun.network/go-perun/channel/test"
 	wallettest "perun.network/go-perun/wallet/test"
 	"perun.network/go-perun/wire"
@@ -91,6 +93,77 @@ func TestClient_validTwoPartyProposal(t *testing.T) {
 			t.Errorf("[%d] Exptected proposal to be invalid", i)
 		}
 	}
+}
+
+type testProposalLedgerBackendID struct {
+	backendID uint32
+	ledgerID  testProposalLedgerID
+}
+
+func (id testProposalLedgerBackendID) BackendID() uint32 { return id.backendID }
+func (id testProposalLedgerBackendID) LedgerID() multi.LedgerID {
+	return id.ledgerID
+}
+
+type testProposalLedgerID string
+
+func (id testProposalLedgerID) MapKey() multi.LedgerIDMapKey {
+	return multi.LedgerIDMapKey(id)
+}
+
+type testProposalMultiAsset struct {
+	channel.Asset
+	id multi.LedgerBackendID
+}
+
+func (a testProposalMultiAsset) LedgerBackendID() multi.LedgerBackendID { return a.id }
+
+func makeTestProposalMultiAsset(addr byte, ledgerID string) channel.Asset {
+	return testProposalMultiAsset{
+		Asset: &testProposalAsset{addr: addr},
+		id: testProposalLedgerBackendID{
+			backendID: uint32(channel.TestBackendID),
+			ledgerID:  testProposalLedgerID(ledgerID),
+		},
+	}
+}
+
+type testProposalAsset struct{ addr byte }
+
+var _ channel.Asset = (*testProposalAsset)(nil)
+var _ encoding.BinaryMarshaler = testProposalAsset{}
+var _ encoding.BinaryUnmarshaler = (*testProposalAsset)(nil)
+
+func (a testProposalAsset) MarshalBinary() ([]byte, error) { return []byte{a.addr}, nil }
+func (a *testProposalAsset) UnmarshalBinary(data []byte) error {
+	if len(data) > 0 {
+		a.addr = data[0]
+	}
+	return nil
+}
+func (a testProposalAsset) Equal(b channel.Asset) bool {
+	other, ok := b.(*testProposalAsset)
+	return ok && other.addr == a.addr
+}
+func (a testProposalAsset) Address() []byte { return []byte{a.addr} }
+
+func TestClient_validTwoPartyProposal_RequiresCoordinatorForMultiLedger(t *testing.T) {
+	rng := pkgtest.Prng(t)
+
+	c := &Client{address: wiretest.NewRandomAddress(rng)}
+	prop := NewRandomLedgerChannelProposal(rng, channeltest.WithNumParts(2))
+	prop.Peers[0] = c.address
+	peerAddr := prop.Peers[1]
+	prop.InitBals = channeltest.NewRandomAllocation(rng, channeltest.WithNumParts(2), channeltest.WithNumAssets(2))
+	prop.InitBals.Assets = []channel.Asset{
+		makeTestProposalMultiAsset(1, "ledger-a"),
+		makeTestProposalMultiAsset(2, "ledger-b"),
+	}
+	prop.Coordinator = nil
+
+	err := c.validTwoPartyProposal(prop, 0, peerAddr)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "requires coordinator")
 }
 
 func TestChannelProposal_assertValidNumParts(t *testing.T) {

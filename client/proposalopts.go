@@ -20,6 +20,7 @@ import (
 
 	"perun.network/go-perun/channel"
 	"perun.network/go-perun/log"
+	"perun.network/go-perun/wallet"
 )
 
 // ProposalOpts contains optional configuration instructions for channel
@@ -27,7 +28,7 @@ import (
 // NoData is set, and a random nonce share is generated.
 type ProposalOpts map[string]interface{}
 
-var optNames = struct{ nonce, app, appData, fundingAgreement, aux string }{nonce: "nonce", app: "app", appData: "appData", fundingAgreement: "fundingAgreement", aux: "aux"}
+var optNames = struct{ nonce, app, appData, fundingAgreement, aux, coordinator string }{nonce: "nonce", app: "app", appData: "appData", fundingAgreement: "fundingAgreement", aux: "aux", coordinator: "coordinator"}
 
 // App returns the option's configured app.
 func (o ProposalOpts) App() channel.App {
@@ -105,6 +106,18 @@ func (o ProposalOpts) aux() channel.Aux {
 	return aux
 }
 
+func (o ProposalOpts) coordinator() map[wallet.BackendID]wallet.Address {
+	a, ok := o[optNames.coordinator]
+	if !ok {
+		return nil
+	}
+	coordinator, ok := a.(map[wallet.BackendID]wallet.Address)
+	if !ok {
+		log.Panicf("wrong type: expected map[wallet.BackendID]wallet.Address, got %T", a)
+	}
+	return wallet.CloneAddressesMap(coordinator)
+}
+
 // isNonce returns whether a ProposalOpts contains a manually set nonce.
 func (o ProposalOpts) isNonce() bool {
 	_, ok := o[optNames.nonce]
@@ -138,6 +151,11 @@ func WithNonce(share NonceShare) ProposalOpts {
 // WithAux configures an auxiliary data field.
 func WithAux(aux channel.Aux) ProposalOpts {
 	return ProposalOpts{optNames.aux: aux}
+}
+
+// WithCoordinator configures a trusted coordinator for multi-ledger channels.
+func WithCoordinator(coordinator map[wallet.BackendID]wallet.Address) ProposalOpts {
+	return ProposalOpts{optNames.coordinator: wallet.CloneAddressesMap(coordinator)}
 }
 
 // WithNonceFrom reads a nonce share from a reader (should be random stream).

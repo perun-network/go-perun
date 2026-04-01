@@ -18,6 +18,7 @@ import (
 	"fmt"
 	stdio "io"
 	"math"
+	"reflect"
 
 	"github.com/pkg/errors"
 
@@ -89,6 +90,7 @@ const (
 	Registered
 	Progressing
 	Progressed
+	Coordinated
 	Withdrawing
 	Withdrawn
 	// LastPhase contains the value of the last phase. This is useful for testing.
@@ -107,6 +109,7 @@ func (p Phase) String() string {
 		"Registered",
 		"Progressing",
 		"Progressed",
+		"Coordinated",
 		"Withdrawing",
 		"Withdrawn",
 	}[p]
@@ -221,6 +224,51 @@ func inPhase(phase Phase, phases []Phase) bool {
 		}
 	}
 	return false
+}
+
+func isMultiLedgerAssets(assets []Asset) bool {
+	var (
+		hasLedgerID bool
+		firstKey    string
+	)
+
+	for _, asset := range assets {
+		key, ok := ledgerMapKey(asset)
+		if !ok {
+			continue
+		}
+		if !hasLedgerID {
+			hasLedgerID = true
+			firstKey = key
+			continue
+		}
+		if firstKey != key {
+			return true
+		}
+	}
+
+	return false
+}
+
+func ledgerMapKey(asset Asset) (string, bool) {
+	method := reflect.ValueOf(asset).MethodByName("LedgerBackendID")
+	if !method.IsValid() || method.Type().NumIn() != 0 || method.Type().NumOut() != 1 {
+		return "", false
+	}
+
+	ledgerBackendID := method.Call(nil)[0]
+	ledgerIDMethod := ledgerBackendID.MethodByName("LedgerID")
+	if !ledgerIDMethod.IsValid() || ledgerIDMethod.Type().NumIn() != 0 || ledgerIDMethod.Type().NumOut() != 1 {
+		return "", false
+	}
+
+	ledgerID := ledgerIDMethod.Call(nil)[0]
+	mapKeyMethod := ledgerID.MethodByName("MapKey")
+	if !mapKeyMethod.IsValid() || mapKeyMethod.Type().NumIn() != 0 || mapKeyMethod.Type().NumOut() != 1 {
+		return "", false
+	}
+
+	return fmt.Sprint(mapKeyMethod.Call(nil)[0].Interface()), true
 }
 
 // Sig returns the own signature on the currently staged state.
@@ -392,11 +440,39 @@ func (m *machine) SetProgressed(e *ProgressedEvent) error {
 	return nil
 }
 
+// SetCoordinated sets the state machine to the Coordinated phase.
+// This phase can only be reached for multi-ledger channels from Registered or
+// Progressed and is idempotent.
+func (m *machine) SetCoordinated() error {
+	if m.phase == Coordinated {
+		return nil
+	}
+
+	if !inPhase(m.phase, []Phase{Registered, Progressed}) {
+		return m.phaseErrorf(m.selfTransition(), "can only coordinate after registering")
+	}
+
+	if m.currentTX.State == nil || !isMultiLedgerAssets(m.currentTX.Assets) {
+		return m.phaseErrorf(PhaseTransition{From: m.phase, To: Coordinated}, "can only coordinate multi-ledger channels")
+	}
+
+	m.setPhase(Coordinated)
+	return nil
+}
+
 // SetWithdrawing sets the state machine to the Withdrawing phase. The current
 // state was registered on-chain and funds withdrawal is in progress.
 // This phase can only be reached from phase Final, Registered, Progressed, or
 // Withdrawing.
 func (m *machine) SetWithdrawing() error {
+	if m.currentTX.State != nil && isMultiLedgerAssets(m.currentTX.Assets) {
+		if !inPhase(m.phase, []Phase{Coordinated, Withdrawing}) {
+			return m.phaseErrorf(m.selfTransition(), "can only withdraw after coordination")
+		}
+		m.setPhase(Withdrawing)
+		return nil
+	}
+
 	if !inPhase(m.phase, []Phase{Final, Registered, Progressed, Withdrawing}) {
 		return m.phaseErrorf(m.selfTransition(), "can only withdraw after registering")
 	}
@@ -412,26 +488,29 @@ func (m *machine) SetWithdrawn() error {
 }
 
 var validPhaseTransitions = map[PhaseTransition]struct{}{
-	{InitActing, InitSigning}: {},
-	{InitSigning, Funding}:    {},
-	{Funding, Acting}:         {},
-	{Acting, Signing}:         {},
-	{Signing, Acting}:         {},
-	{Signing, Final}:          {},
-	{Funding, Registering}:    {},
-	{Acting, Registering}:     {},
-	{Signing, Registering}:    {},
-	{Final, Registering}:      {},
-	{Funding, Registered}:     {},
-	{Acting, Registered}:      {},
-	{Signing, Registered}:     {},
-	{Final, Registered}:       {},
-	{Registering, Registered}: {},
-	{Registered, Withdrawing}: {},
-	{Registered, Progressed}:  {},
-	{Progressing, Progressed}: {},
-	{Progressed, Withdrawing}: {},
-	{Withdrawing, Withdrawn}:  {},
+	{InitActing, InitSigning}:  {},
+	{InitSigning, Funding}:     {},
+	{Funding, Acting}:          {},
+	{Acting, Signing}:          {},
+	{Signing, Acting}:          {},
+	{Signing, Final}:           {},
+	{Funding, Registering}:     {},
+	{Acting, Registering}:      {},
+	{Signing, Registering}:     {},
+	{Final, Registering}:       {},
+	{Funding, Registered}:      {},
+	{Acting, Registered}:       {},
+	{Signing, Registered}:      {},
+	{Final, Registered}:        {},
+	{Registering, Registered}:  {},
+	{Registered, Coordinated}:  {},
+	{Registered, Withdrawing}:  {},
+	{Registered, Progressed}:   {},
+	{Progressing, Progressed}:  {},
+	{Progressed, Coordinated}:  {},
+	{Progressed, Withdrawing}:  {},
+	{Coordinated, Withdrawing}: {},
+	{Withdrawing, Withdrawn}:   {},
 }
 
 func (m *machine) Clone() *machine {

@@ -41,7 +41,7 @@ func (*backend) CalcID(p *channel.Params) (id channel.ID, err error) {
 		log.Panic("Could not write to sha256 hasher")
 	}
 
-	err = perunio.Encode(w, p.Nonce, p.ChallengeDuration, channel.OptAppEnc{App: p.App}, p.LedgerChannel, p.VirtualChannel)
+	err = perunio.Encode(w, p.Nonce, p.ChallengeDuration, channel.OptAppEnc{App: p.App}, p.LedgerChannel, p.VirtualChannel, wallet.AddressDecMap(p.Coordinator))
 	if err != nil {
 		return
 	}

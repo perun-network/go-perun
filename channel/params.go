@@ -87,13 +87,16 @@ type Params struct {
 	VirtualChannel bool
 	// Aux is an optional field that can be used to store additional information.
 	Aux Aux
+	// Coordinator identifies the trusted coordinator for multi-ledger channels.
+	Coordinator map[wallet.BackendID]wallet.Address
 }
 
 // NewParams creates Params from the given data and performs sanity checks. The
 // appDef optional: if it is nil, it describes a payment channel. The channel id
 // is also calculated here and persisted because it probably is an expensive
 // hash operation.
-func NewParams(challengeDuration uint64, parts []map[wallet.BackendID]wallet.Address, app App, nonce Nonce, ledger bool, virtual bool, aux Aux) (*Params, error) {
+func NewParams(challengeDuration uint64, parts []map[wallet.BackendID]wallet.Address, app App, nonce Nonce, ledger bool, virtual bool, aux Aux,
+	coordinator map[wallet.BackendID]wallet.Address) (*Params, error) {
 	if err := ValidateParameters(challengeDuration, len(parts), app, nonce); err != nil {
 		return nil, errors.WithMessage(err, "invalid parameter for NewParams")
 	}
@@ -107,13 +110,14 @@ func NewParams(challengeDuration uint64, parts []map[wallet.BackendID]wallet.Add
 			}
 		}
 	}
-	return NewParamsUnsafe(challengeDuration, parts, app, nonce, ledger, virtual, aux), nil
+	return NewParamsUnsafe(challengeDuration, parts, app, nonce, ledger, virtual, aux, coordinator), nil
 }
 
 // NewParamsUnsafe creates Params from the given data and does NOT perform
 // sanity checks. The channel id is also calculated here and persisted because
 // it probably is an expensive hash operation.
-func NewParamsUnsafe(challengeDuration uint64, parts []map[wallet.BackendID]wallet.Address, app App, nonce Nonce, ledger bool, virtual bool, aux Aux) *Params {
+func NewParamsUnsafe(challengeDuration uint64, parts []map[wallet.BackendID]wallet.Address, app App, nonce Nonce, ledger bool, virtual bool, aux Aux,
+	coordinator map[wallet.BackendID]wallet.Address) *Params {
 	p := &Params{
 		ChallengeDuration: challengeDuration,
 		Parts:             parts,
@@ -122,6 +126,7 @@ func NewParamsUnsafe(challengeDuration uint64, parts []map[wallet.BackendID]wall
 		LedgerChannel:     ledger,
 		VirtualChannel:    virtual,
 		Aux:               aux,
+		Coordinator:       coordinator,
 	}
 
 	// probably an expensive hash operation, do it only once during creation.
@@ -186,6 +191,11 @@ func CloneAddresses(as []map[wallet.BackendID]wallet.Address) []map[wallet.Backe
 
 // Clone returns a deep copy of Params.
 func (p *Params) Clone() *Params {
+	var coordinator map[wallet.BackendID]wallet.Address
+	if p.Coordinator != nil {
+		coordinator = wallet.CloneAddressesMap(p.Coordinator)
+	}
+
 	return &Params{
 		id:                p.ID(),
 		ChallengeDuration: p.ChallengeDuration,
@@ -195,6 +205,7 @@ func (p *Params) Clone() *Params {
 		LedgerChannel:     p.LedgerChannel,
 		VirtualChannel:    p.VirtualChannel,
 		Aux:               p.Aux,
+		Coordinator:       coordinator,
 	}
 }
 
@@ -208,6 +219,7 @@ func (p *Params) Encode(w stdio.Writer) error {
 		p.LedgerChannel,
 		p.VirtualChannel,
 		p.Aux,
+		wallet.AddressDecMap(p.Coordinator),
 	)
 }
 
@@ -221,6 +233,7 @@ func (p *Params) Decode(r stdio.Reader) error {
 		ledger            bool
 		virtual           bool
 		aux               Aux
+		coordinator       map[wallet.BackendID]wallet.Address
 	)
 
 	err := perunio.Decode(r,
@@ -231,12 +244,16 @@ func (p *Params) Decode(r stdio.Reader) error {
 		&ledger,
 		&virtual,
 		&aux,
+		(*wallet.AddressDecMap)(&coordinator),
 	)
 	if err != nil {
 		return err
 	}
+	if len(coordinator) == 0 {
+		coordinator = nil
+	}
 
-	_p, err := NewParams(challengeDuration, parts.Addr, app, nonce, ledger, virtual, aux)
+	_p, err := NewParams(challengeDuration, parts.Addr, app, nonce, ledger, virtual, aux, coordinator)
 	if err != nil {
 		return err
 	}

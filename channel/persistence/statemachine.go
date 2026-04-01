@@ -67,6 +67,15 @@ func (m StateMachine) SetRegistered(ctx context.Context) error {
 	return errors.WithMessage(m.pr.PhaseChanged(ctx, m.StateMachine), "Persister.PhaseChanged")
 }
 
+// SetCoordinated calls SetCoordinated on the channel.StateMachine and then
+// persists the changed phase.
+func (m StateMachine) SetCoordinated(ctx context.Context) error {
+	if err := m.StateMachine.SetCoordinated(); err != nil {
+		return err
+	}
+	return errors.WithMessage(m.pr.PhaseChanged(ctx, m.StateMachine), "Persister.PhaseChanged")
+}
+
 // SetProgressing calls SetProgressing on the channel.StateMachine and then
 // persists the changed state.
 func (m StateMachine) SetProgressing(ctx context.Context, s *channel.State) error {

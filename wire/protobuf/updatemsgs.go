@@ -144,6 +144,7 @@ func ToParams(protoParams *Params) (*channel.Params, error) {
 		protoParams.GetLedgerChannel(),
 		protoParams.GetVirtualChannel(),
 		aux,
+		nil,
 	)
 
 	return params, nil

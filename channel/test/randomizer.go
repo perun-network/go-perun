@@ -206,7 +206,7 @@ func NewRandomParams(rng *rand.Rand, opts ...RandomOpt) *channel.Params {
 	virtual := opt.VirtualChannel(rng)
 	aux := opt.Aux(rng)
 
-	params := channel.NewParamsUnsafe(challengeDuration, parts, app, nonce, ledger, virtual, aux)
+	params := channel.NewParamsUnsafe(challengeDuration, parts, app, nonce, ledger, virtual, aux, nil)
 	updateOpts(opts, WithParams(params))
 	return params
 }

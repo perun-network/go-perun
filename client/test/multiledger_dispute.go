@@ -73,6 +73,7 @@ func TestMultiLedgerDispute(
 		alice.WalletAddress,
 		initAlloc,
 		parts,
+		client.WithCoordinator(alice.WalletAddress),
 	)
 	require.NoError(err, "creating ledger channel proposal")
 

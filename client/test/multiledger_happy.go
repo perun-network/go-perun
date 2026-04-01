@@ -51,6 +51,7 @@ func TestMultiLedgerHappy(ctx context.Context, t *testing.T, mlt MultiLedgerSetu
 		alice.WalletAddress,
 		initAlloc,
 		parts,
+		client.WithCoordinator(alice.WalletAddress),
 	)
 	require.NoError(err, "creating ledger channel proposal")
 

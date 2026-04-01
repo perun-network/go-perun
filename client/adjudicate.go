@@ -22,6 +22,7 @@ import (
 	"github.com/pkg/errors"
 
 	"perun.network/go-perun/channel"
+	"perun.network/go-perun/channel/multi"
 	"perun.network/go-perun/log"
 	"perun.network/go-perun/watcher"
 	"perun.network/go-perun/wire"
@@ -248,7 +249,8 @@ func (c *Channel) ForceUpdate(ctx context.Context, updater func(*channel.State))
 // Returns ChainNotReachableError if the connection to the blockchain network
 // fails when sending a transaction to / reading from the blockchain.
 func (c *Channel) Settle(ctx context.Context, secondary bool) (err error) {
-	if !c.State().IsFinal {
+	isMultiLedger := multi.IsMultiLedgerAssets(c.machine.State().Allocation.Assets)
+	if isMultiLedger || !c.State().IsFinal {
 		err := c.ensureRegistered(ctx)
 		if err != nil {
 			return err
@@ -266,6 +268,11 @@ func (c *Channel) Settle(ctx context.Context, secondary bool) (err error) {
 	if err = c.applyRecursive(func(c *Channel) error {
 		if c.machine.Phase() == channel.Withdrawn {
 			return nil
+		}
+		if multi.IsMultiLedgerAssets(c.machine.State().Allocation.Assets) {
+			if err := c.machine.SetCoordinated(ctx); err != nil {
+				return err
+			}
 		}
 		return c.machine.SetWithdrawing(ctx)
 	}); err != nil {
