@@ -515,12 +515,28 @@ func (c *Channel) awaitRegistered(ctx context.Context) error {
 		}
 	}()
 
+	events, stop := c.consumeAdjudicatorEvents(ctx, sub)
+	defer close(stop)
+
 	// Scan for event.
-	for e := sub.Next(); e != nil; e = sub.Next() {
+	for {
+		var e channel.AdjudicatorEvent
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case next, ok := <-events:
+			if !ok {
+				return sub.Err()
+			}
+			e = next
+		}
+
 		switch e.(type) {
 		case *channel.RegisteredEvent:
 		case *channel.ProgressedEvent:
 		case *channel.ConcludedEvent:
+		case *channel.CoordinatedEvent:
+			continue
 		default:
 			log.Warnf("unrecognized event type: %T", e)
 			continue
@@ -541,5 +557,31 @@ func (c *Channel) awaitRegistered(ctx context.Context) error {
 		// Wait until end of channel phase.
 		return e.Timeout().Wait(ctx)
 	}
-	return sub.Err()
+}
+
+func (c *Channel) consumeAdjudicatorEvents(
+	ctx context.Context,
+	sub channel.AdjudicatorSubscription,
+) (<-chan channel.AdjudicatorEvent, chan struct{}) {
+	events := make(chan channel.AdjudicatorEvent)
+	stop := make(chan struct{})
+
+	go func() {
+		defer close(events)
+		for e := sub.Next(); e != nil; e = sub.Next() {
+			if coordinated, ok := e.(*channel.CoordinatedEvent); ok {
+				c.client.coordination.NotifyCoordinated(coordinated.ID())
+			}
+
+			select {
+			case events <- e:
+			case <-ctx.Done():
+				return
+			case <-stop:
+				return
+			}
+		}
+	}()
+
+	return events, stop
 }
