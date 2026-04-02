@@ -104,6 +104,7 @@ message BaseChannelProposal {
   Allocation init_bals = 6;
   Balances funding_agreement = 7;
   bytes aux = 8;
+  Address coordinator = 9;
 }
 
 // BaseChannelProposalAcc represents client.BaseChannelProposalAcc.
@@ -122,6 +123,7 @@ message Params {
   bool ledger_channel = 6;
   bool virtual_channel = 7;
   bytes aux = 8;
+  Address coordinator = 9;
 }
 
 // State represents channel.State.

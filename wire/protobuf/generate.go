@@ -19,4 +19,4 @@ package protobuf
 //
 // It requires protoc and protoc-gen-go to be installed.
 
-//go:generate protoc --go_out=. wire.proto
+//go:generate protoc --go_out=. --go_opt=paths=source_relative wire.proto

@@ -22,6 +22,7 @@ import (
 	"github.com/pkg/errors"
 	"perun.network/go-perun/channel"
 	"perun.network/go-perun/client"
+	"perun.network/go-perun/wallet"
 )
 
 // ToChannelUpdateMsg converts a protobuf Envelope_ChannelUpdateMsg to a client.ChannelUpdateMsg.
@@ -133,6 +134,16 @@ func ToParams(protoParams *Params) (*channel.Params, error) {
 	if err != nil {
 		return nil, errors.WithMessage(err, "parts")
 	}
+	var coordinator map[wallet.BackendID]wallet.Address
+	if protoParams.GetCoordinator() != nil {
+		coordinator, err = ToWalletAddr(protoParams.GetCoordinator())
+		if err != nil {
+			return nil, errors.WithMessage(err, "coordinator")
+		}
+		if len(coordinator) == 0 {
+			coordinator = nil
+		}
+	}
 
 	var aux channel.Aux
 	copy(aux[:], protoParams.GetAux())
@@ -144,7 +155,7 @@ func ToParams(protoParams *Params) (*channel.Params, error) {
 		protoParams.GetLedgerChannel(),
 		protoParams.GetVirtualChannel(),
 		aux,
-		nil,
+		coordinator,
 	)
 
 	return params, nil
@@ -268,8 +279,17 @@ func FromParams(params *channel.Params) (protoParams *Params, err error) {
 		return nil, errors.WithMessage(err, "parts")
 	}
 	protoParams.App, err = FromApp(params.App)
+	if err != nil {
+		return nil, err
+	}
+	if params.Coordinator != nil {
+		protoParams.Coordinator, err = FromWalletAddr(params.Coordinator)
+		if err != nil {
+			return nil, errors.WithMessage(err, "coordinator")
+		}
+	}
 	protoParams.Aux = params.Aux[:]
-	return protoParams, err
+	return protoParams, nil
 }
 
 // FromState converts a channel.State to a protobuf State.

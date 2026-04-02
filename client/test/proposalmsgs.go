@@ -42,22 +42,28 @@ func channelProposalReqSerializationTest(t *testing.T, serializerTest func(t *te
 	rng := pkgtest.Prng(t)
 	for i := range 16 {
 		var (
-			app client.ProposalOpts
-			m   wire.Msg
-			err error
+			opts []client.ProposalOpts
+			m    wire.Msg
+			err  error
 		)
 		if i&1 == 0 {
-			app = client.WithApp(test.NewRandomAppAndData(rng))
+			opts = append(opts, client.WithApp(test.NewRandomAppAndData(rng)))
+		}
+		if i&2 == 0 {
+			opts = append(opts, client.WithCoordinator(wallettest.NewRandomAddresses(rng, channel.TestBackendID)))
 		}
 
 		switch i % 3 {
 		case 0:
-			m = NewRandomLedgerChannelProposal(rng, client.WithNonceFrom(rng), app)
+			opts = append(opts, client.WithNonceFrom(rng))
+			m = NewRandomLedgerChannelProposal(rng, opts...)
 		case 1:
-			m, err = NewRandomSubChannelProposal(rng, client.WithNonceFrom(rng), app)
+			opts = append(opts, client.WithNonceFrom(rng))
+			m, err = NewRandomSubChannelProposal(rng, opts...)
 			require.NoError(t, err)
 		case 2: //nolint: mnd 	// This is not a magic number.
-			m, err = NewRandomVirtualChannelProposal(rng, client.WithNonceFrom(rng), app)
+			opts = append(opts, client.WithNonceFrom(rng))
+			m, err = NewRandomVirtualChannelProposal(rng, opts...)
 			require.NoError(t, err)
 		}
 		serializerTest(t, m)
