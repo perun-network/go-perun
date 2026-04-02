@@ -260,6 +260,12 @@ func (c *Channel) Settle(ctx context.Context, secondary bool) (err error) {
 	}
 
 	if requiresCoordination {
+		stopCoordinationConsumer, err := c.startCoordinationConsumer(ctx)
+		if err != nil {
+			return errors.WithMessage(err, "starting coordination event consumer")
+		}
+		defer stopCoordinationConsumer()
+
 		if err := c.client.coordination.RequestCoordination(ctx, c.ID()); err != nil {
 			return errors.WithMessage(err, "requesting coordination")
 		}
@@ -584,4 +590,33 @@ func (c *Channel) consumeAdjudicatorEvents(
 	}()
 
 	return events, stop
+}
+
+func (c *Channel) startCoordinationConsumer(ctx context.Context) (func(), error) {
+	sub, err := c.adjudicator.Subscribe(ctx, c.Params().ID())
+	if err != nil {
+		return nil, errors.WithMessage(err, "subscribing to adjudicator events")
+	}
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for e := sub.Next(); e != nil; e = sub.Next() {
+			if coordinated, ok := e.(*channel.CoordinatedEvent); ok {
+				c.client.coordination.NotifyCoordinated(coordinated.ID())
+			}
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+		}
+	}()
+
+	return func() {
+		if err := sub.Close(); err != nil {
+			c.Log().Warn("Subscription closed with error:", err)
+		}
+		<-done
+	}, nil
 }
