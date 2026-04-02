@@ -399,9 +399,6 @@ func (c *Client) validTwoPartyProposal(
 	if multiLedger && appChannel {
 		return errors.New("multi-ledger app channel not supported")
 	}
-	if multiLedger && proposal.Base().Coordinator == nil {
-		return errors.New("multi-ledger channel proposal requires coordinator")
-	}
 
 	peers := c.proposalPeers(proposal)
 	if proposal.Base().NumPeers() != len(peers) {

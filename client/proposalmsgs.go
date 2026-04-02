@@ -24,7 +24,6 @@ import (
 	"github.com/pkg/errors"
 
 	"perun.network/go-perun/channel"
-	"perun.network/go-perun/channel/multi"
 	"perun.network/go-perun/log"
 	"perun.network/go-perun/wallet"
 	"perun.network/go-perun/wire"
@@ -205,8 +204,6 @@ func (p *BaseChannelProposal) Valid() error {
 		return err
 	} else if len(p.InitBals.Locked) != 0 {
 		return errors.New("initial allocation cannot have locked funds")
-	} else if multi.IsMultiLedgerAssets(p.InitBals.Assets) && p.Coordinator == nil {
-		return errors.New("multi-ledger channel proposal requires coordinator")
 	}
 	return nil
 }

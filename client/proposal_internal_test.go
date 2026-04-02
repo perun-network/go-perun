@@ -147,13 +147,14 @@ func (a testProposalAsset) Equal(b channel.Asset) bool {
 }
 func (a testProposalAsset) Address() []byte { return []byte{a.addr} }
 
-func TestClient_validTwoPartyProposal_RequiresCoordinatorForMultiLedger(t *testing.T) {
+func TestClient_validTwoPartyProposal_OptionalCoordinatorForMultiLedger(t *testing.T) {
 	rng := pkgtest.Prng(t)
 
 	c := &Client{address: wiretest.NewRandomAddress(rng)}
 	prop := NewRandomLedgerChannelProposal(rng, channeltest.WithNumParts(2))
 	prop.Peers[0] = c.address
 	peerAddr := prop.Peers[1]
+	prop.App = channel.NoApp()
 	prop.InitBals = channeltest.NewRandomAllocation(rng, channeltest.WithNumParts(2), channeltest.WithNumAssets(2))
 	prop.InitBals.Assets = []channel.Asset{
 		makeTestProposalMultiAsset(1, "ledger-a"),
@@ -162,8 +163,7 @@ func TestClient_validTwoPartyProposal_RequiresCoordinatorForMultiLedger(t *testi
 	prop.Coordinator = nil
 
 	err := c.validTwoPartyProposal(prop, 0, peerAddr)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "requires coordinator")
+	require.NoError(t, err)
 }
 
 func TestChannelProposal_assertValidNumParts(t *testing.T) {

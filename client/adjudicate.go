@@ -250,7 +250,8 @@ func (c *Channel) ForceUpdate(ctx context.Context, updater func(*channel.State))
 // fails when sending a transaction to / reading from the blockchain.
 func (c *Channel) Settle(ctx context.Context, secondary bool) (err error) {
 	isMultiLedger := multi.IsMultiLedgerAssets(c.machine.State().Allocation.Assets)
-	if isMultiLedger || !c.State().IsFinal {
+	hasCoordinator := len(c.machine.Params().Coordinator) > 0
+	if (isMultiLedger && hasCoordinator) || !c.State().IsFinal {
 		err := c.ensureRegistered(ctx)
 		if err != nil {
 			return err
@@ -269,7 +270,7 @@ func (c *Channel) Settle(ctx context.Context, secondary bool) (err error) {
 		if c.machine.Phase() == channel.Withdrawn {
 			return nil
 		}
-		if multi.IsMultiLedgerAssets(c.machine.State().Allocation.Assets) {
+		if multi.IsMultiLedgerAssets(c.machine.State().Allocation.Assets) && len(c.machine.Params().Coordinator) > 0 {
 			if err := c.machine.SetCoordinated(ctx); err != nil {
 				return err
 			}

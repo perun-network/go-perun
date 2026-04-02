@@ -271,6 +271,10 @@ func ledgerMapKey(asset Asset) (string, bool) {
 	return fmt.Sprint(mapKeyMethod.Call(nil)[0].Interface()), true
 }
 
+func hasCoordinator(coordinator map[wallet.BackendID]wallet.Address) bool {
+	return len(coordinator) > 0
+}
+
 // Sig returns the own signature on the currently staged state.
 // The signature is calculated and saved to the staging TX's signature slice
 // if it was not calculated before.
@@ -452,7 +456,7 @@ func (m *machine) SetCoordinated() error {
 		return m.phaseErrorf(m.selfTransition(), "can only coordinate after registering")
 	}
 
-	if m.currentTX.State == nil || !isMultiLedgerAssets(m.currentTX.Assets) {
+	if m.currentTX.State == nil || !isMultiLedgerAssets(m.currentTX.Assets) || !hasCoordinator(m.params.Coordinator) {
 		return m.phaseErrorf(PhaseTransition{From: m.phase, To: Coordinated}, "can only coordinate multi-ledger channels")
 	}
 
@@ -465,7 +469,7 @@ func (m *machine) SetCoordinated() error {
 // This phase can only be reached from phase Final, Registered, Progressed, or
 // Withdrawing.
 func (m *machine) SetWithdrawing() error {
-	if m.currentTX.State != nil && isMultiLedgerAssets(m.currentTX.Assets) {
+	if m.currentTX.State != nil && isMultiLedgerAssets(m.currentTX.Assets) && hasCoordinator(m.params.Coordinator) {
 		if !inPhase(m.phase, []Phase{Coordinated, Withdrawing}) {
 			return m.phaseErrorf(m.selfTransition(), "can only withdraw after coordination")
 		}

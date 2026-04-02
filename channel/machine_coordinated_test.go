@@ -72,12 +72,16 @@ func (a *testMultiLedgerAsset) LedgerBackendID() testLedgerBackendID {
 	return a.ledgerID
 }
 
-func newStateMachineForPhase2(t *testing.T, rng *rand.Rand, phase Phase, assets []Asset) *StateMachine {
+func newStateMachineForPhase2(t *testing.T, rng *rand.Rand, phase Phase, assets []Asset, withCoordinator bool) *StateMachine {
 	t.Helper()
 
 	accs, parts := wtest.NewRandomAccounts(rng, 2, TestBackendID)
 	nonce := NonceFromBytes([]byte{1, 2, 3})
-	params := *NewParamsUnsafe(60, parts, NoApp(), nonce, true, false, ZeroAux, nil)
+	var coordinator map[wallet.BackendID]wallet.Address
+	if withCoordinator {
+		coordinator = map[wallet.BackendID]wallet.Address{TestBackendID: parts[0][TestBackendID]}
+	}
+	params := *NewParamsUnsafe(60, parts, NoApp(), nonce, true, false, ZeroAux, coordinator)
 
 	sm, err := NewStateMachine(accs[0], params)
 	require.NoError(t, err)
@@ -116,7 +120,7 @@ func TestSetCoordinated_MultiLedgerTransitions(t *testing.T) {
 	}
 
 	for _, phase := range []Phase{Registered, Progressed} {
-		sm := newStateMachineForPhase2(t, rng, phase, assets)
+		sm := newStateMachineForPhase2(t, rng, phase, assets, true)
 		require.NoError(t, sm.SetCoordinated())
 		require.Equal(t, Coordinated, sm.Phase())
 	}
@@ -129,9 +133,23 @@ func TestSetCoordinated_Idempotent(t *testing.T) {
 		&testMultiLedgerAsset{testAsset: testAsset{id: 2}, ledgerID: testLedgerBackendID{backendID: 1, ledgerID: "ledger-b"}},
 	}
 
-	sm := newStateMachineForPhase2(t, rng, Coordinated, assets)
+	sm := newStateMachineForPhase2(t, rng, Coordinated, assets, true)
 	require.NoError(t, sm.SetCoordinated())
 	require.Equal(t, Coordinated, sm.Phase())
+}
+
+func TestSetCoordinated_MultiLedgerWithoutCoordinatorFails(t *testing.T) {
+	rng := pkgtest.Prng(t)
+	assets := []Asset{
+		&testMultiLedgerAsset{testAsset: testAsset{id: 1}, ledgerID: testLedgerBackendID{backendID: 1, ledgerID: "ledger-a"}},
+		&testMultiLedgerAsset{testAsset: testAsset{id: 2}, ledgerID: testLedgerBackendID{backendID: 1, ledgerID: "ledger-b"}},
+	}
+
+	sm := newStateMachineForPhase2(t, rng, Registered, assets, false)
+	err := sm.SetCoordinated()
+	require.Error(t, err)
+	require.True(t, IsPhaseTransitionError(err))
+	require.Equal(t, Registered, sm.Phase())
 }
 
 func TestSetCoordinated_SingleLedgerFails(t *testing.T) {
@@ -141,29 +159,43 @@ func TestSetCoordinated_SingleLedgerFails(t *testing.T) {
 		&testAsset{id: 2},
 	}
 
-	sm := newStateMachineForPhase2(t, rng, Registered, assets)
+	sm := newStateMachineForPhase2(t, rng, Registered, assets, true)
 	err := sm.SetCoordinated()
 	require.Error(t, err)
 	require.True(t, IsPhaseTransitionError(err))
 	require.Equal(t, Registered, sm.Phase())
 }
 
-func TestSetWithdrawing_MultiLedgerRequiresCoordinated(t *testing.T) {
+func TestSetWithdrawing_MultiLedgerRequiresCoordinatedWhenCoordinatorSet(t *testing.T) {
 	rng := pkgtest.Prng(t)
 	assets := []Asset{
 		&testMultiLedgerAsset{testAsset: testAsset{id: 1}, ledgerID: testLedgerBackendID{backendID: 1, ledgerID: "ledger-a"}},
 		&testMultiLedgerAsset{testAsset: testAsset{id: 2}, ledgerID: testLedgerBackendID{backendID: 1, ledgerID: "ledger-b"}},
 	}
 
-	sm := newStateMachineForPhase2(t, rng, Registered, assets)
+	sm := newStateMachineForPhase2(t, rng, Registered, assets, true)
 	err := sm.SetWithdrawing()
 	require.Error(t, err)
 	require.True(t, IsPhaseTransitionError(err))
 	require.Equal(t, Registered, sm.Phase())
 
-	sm = newStateMachineForPhase2(t, rng, Coordinated, assets)
+	sm = newStateMachineForPhase2(t, rng, Coordinated, assets, true)
 	require.NoError(t, sm.SetWithdrawing())
 	require.Equal(t, Withdrawing, sm.Phase())
+}
+
+func TestSetWithdrawing_MultiLedgerWithoutCoordinatorUnchanged(t *testing.T) {
+	rng := pkgtest.Prng(t)
+	assets := []Asset{
+		&testMultiLedgerAsset{testAsset: testAsset{id: 1}, ledgerID: testLedgerBackendID{backendID: 1, ledgerID: "ledger-a"}},
+		&testMultiLedgerAsset{testAsset: testAsset{id: 2}, ledgerID: testLedgerBackendID{backendID: 1, ledgerID: "ledger-b"}},
+	}
+
+	for _, phase := range []Phase{Final, Registered, Progressed, Withdrawing} {
+		sm := newStateMachineForPhase2(t, rng, phase, assets, false)
+		require.NoError(t, sm.SetWithdrawing())
+		require.Equal(t, Withdrawing, sm.Phase())
+	}
 }
 
 func TestSetWithdrawing_SingleLedgerUnchanged(t *testing.T) {
@@ -174,7 +206,7 @@ func TestSetWithdrawing_SingleLedgerUnchanged(t *testing.T) {
 	}
 
 	for _, phase := range []Phase{Final, Registered, Progressed, Withdrawing} {
-		sm := newStateMachineForPhase2(t, rng, phase, assets)
+		sm := newStateMachineForPhase2(t, rng, phase, assets, false)
 		require.NoError(t, sm.SetWithdrawing())
 		require.Equal(t, Withdrawing, sm.Phase())
 	}
