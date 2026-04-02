@@ -95,6 +95,11 @@ func TestMultiLedgerHappy(ctx context.Context, t *testing.T, mlt MultiLedgerSetu
 	})
 	require.NoError(err)
 
+	// Phase 5 integration awaits coordination for coordinator-enabled channels.
+	// Simulate the coordinated event until the Phase 6 consumer is added.
+	client.NewTestChannel(chAliceBob).NotifyCoordinated()
+	client.NewTestChannel(chBobAlice).NotifyCoordinated()
+
 	// Close channel.
 	err = chAliceBob.Settle(ctx, false)
 	require.NoError(err)

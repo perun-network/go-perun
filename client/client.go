@@ -21,6 +21,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"perun.network/go-perun/channel"
+	"perun.network/go-perun/channel/multi"
 	"perun.network/go-perun/channel/persistence"
 	"perun.network/go-perun/log"
 	"perun.network/go-perun/wallet"
@@ -49,6 +50,7 @@ type Client struct {
 	fundingWatcher    *stateWatcher
 	settlementWatcher *stateWatcher
 	watcher           watcher.Watcher
+	coordination      *multi.CoordinationRegistry
 }
 
 // New creates a new State Channel Client.
@@ -98,15 +100,16 @@ func New(
 	}
 
 	c = &Client{
-		address:     address,
-		conn:        conn,
-		channels:    makeChanRegistry(),
-		funder:      funder,
-		adjudicator: adjudicator,
-		wallet:      wallet,
-		pr:          persistence.NonPersistRestorer,
-		log:         log,
-		watcher:     watcher,
+		address:      address,
+		conn:         conn,
+		channels:     makeChanRegistry(),
+		funder:       funder,
+		adjudicator:  adjudicator,
+		wallet:       wallet,
+		pr:           persistence.NonPersistRestorer,
+		log:          log,
+		watcher:      watcher,
+		coordination: multi.NewCoordinationRegistry(),
 	}
 
 	c.fundingWatcher = newStateWatcher(c.matchFundingProposal)

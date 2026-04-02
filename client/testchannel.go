@@ -42,3 +42,8 @@ func (c *TestChannel) AdjudicatorReq() channel.AdjudicatorReq {
 func (c *TestChannel) Register(ctx context.Context) error {
 	return c.registerDispute(ctx)
 }
+
+// NotifyCoordinated exposes coordination notification for testing.
+func (c *TestChannel) NotifyCoordinated() {
+	c.client.coordination.NotifyCoordinated(c.ID())
+}

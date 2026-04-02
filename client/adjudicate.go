@@ -251,12 +251,23 @@ func (c *Channel) ForceUpdate(ctx context.Context, updater func(*channel.State))
 func (c *Channel) Settle(ctx context.Context, secondary bool) (err error) {
 	isMultiLedger := multi.IsMultiLedgerAssets(c.machine.State().Allocation.Assets)
 	hasCoordinator := len(c.machine.Params().Coordinator) > 0
-	if (isMultiLedger && hasCoordinator) || !c.State().IsFinal {
+	requiresCoordination := isMultiLedger && hasCoordinator
+	if requiresCoordination || !c.State().IsFinal {
 		err := c.ensureRegistered(ctx)
 		if err != nil {
 			return err
 		}
 	}
+
+	if requiresCoordination {
+		if err := c.client.coordination.RequestCoordination(ctx, c.ID()); err != nil {
+			return errors.WithMessage(err, "requesting coordination")
+		}
+		if err := c.client.coordination.AwaitCoordinated(ctx, c.ID()); err != nil {
+			return errors.WithMessage(err, "awaiting coordinated event")
+		}
+	}
+	rootID := c.ID()
 
 	// Lock machines of channel and all subchannels recursively.
 	l, err := c.tryLockRecursive(ctx)
@@ -266,16 +277,16 @@ func (c *Channel) Settle(ctx context.Context, secondary bool) (err error) {
 	}
 
 	// Set phase `Withdrawing`.
-	if err = c.applyRecursive(func(c *Channel) error {
-		if c.machine.Phase() == channel.Withdrawn {
+	if err = c.applyRecursive(func(ch *Channel) error {
+		if ch.machine.Phase() == channel.Withdrawn {
 			return nil
 		}
-		if multi.IsMultiLedgerAssets(c.machine.State().Allocation.Assets) && len(c.machine.Params().Coordinator) > 0 {
-			if err := c.machine.SetCoordinated(ctx); err != nil {
+		if ch.ID() == rootID && requiresCoordination {
+			if err := ch.machine.SetCoordinated(ctx); err != nil {
 				return err
 			}
 		}
-		return c.machine.SetWithdrawing(ctx)
+		return ch.machine.SetWithdrawing(ctx)
 	}); err != nil {
 		return errors.WithMessage(err, "setting phase `Withdrawing` recursive")
 	}
