@@ -135,14 +135,32 @@ func TestMultiLedgerDispute(
 	err = e.(*channel.RegisteredEvent).TimeoutV.Wait(ctx)
 	require.NoError(err)
 
-	// Phase 5 integration awaits coordination for coordinator-enabled channels.
-	// Simulate the coordinated event until the Phase 6 consumer is added.
-	client.NewTestChannel(chAliceBob).NotifyCoordinated()
-	client.NewTestChannel(chBobAlice).NotifyCoordinated()
+	// Coordination wait must respect context cancellation while no event is emitted.
+	cancelCtx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond) //nolint:mnd // Small timeout to test cancellation behavior.
+	defer cancel()
+	err = chBobAlice.Settle(cancelCtx, false)
+	require.Error(err)
+	assert.ErrorIs(t, err, context.DeadlineExceeded)
 
-	// Settle.
-	err = chAliceBob.Settle(ctx, false)
+	// Settle should block until coordinated event arrives through adjudicator subscription.
+	settleDone := make(chan error, 1)
+	go func() {
+		settleDone <- chAliceBob.Settle(ctx, false)
+	}()
+	select {
+	case err = <-settleDone:
+		t.Fatalf("settle returned before coordination event: %v", err)
+	case <-time.After(100 * time.Millisecond): //nolint:mnd // Keep this short while still observing blocking behavior.
+	}
+
+	mlt.Backend1.NotifyCoordinated(chAliceBob.ID())
+	mlt.Backend2.NotifyCoordinated(chAliceBob.ID())
+	err = <-settleDone
 	require.NoError(err)
+
+	// Bob can settle successfully once coordinated has been signaled.
+	mlt.Backend1.NotifyCoordinated(chAliceBob.ID())
+	mlt.Backend2.NotifyCoordinated(chAliceBob.ID())
 	err = chBobAlice.Settle(ctx, false)
 	require.NoError(err)
 

@@ -17,6 +17,7 @@ package test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"perun.network/go-perun/wallet"
 
@@ -95,14 +96,21 @@ func TestMultiLedgerHappy(ctx context.Context, t *testing.T, mlt MultiLedgerSetu
 	})
 	require.NoError(err)
 
-	// Phase 5 integration awaits coordination for coordinator-enabled channels.
-	// Simulate the coordinated event until the Phase 6 consumer is added.
-	client.NewTestChannel(chAliceBob).NotifyCoordinated()
-	client.NewTestChannel(chBobAlice).NotifyCoordinated()
+	settleAliceDone := make(chan error, 1)
+	settleBobDone := make(chan error, 1)
+	go func() {
+		settleAliceDone <- chAliceBob.Settle(ctx, false)
+	}()
+	go func() {
+		settleBobDone <- chBobAlice.Settle(ctx, false)
+	}()
 
-	// Close channel.
-	err = chAliceBob.Settle(ctx, false)
+	time.Sleep(100 * time.Millisecond) //nolint:mnd // Give settle calls time to subscribe before emitting coordinated events.
+	mlt.Backend1.NotifyCoordinated(chAliceBob.ID())
+	mlt.Backend2.NotifyCoordinated(chAliceBob.ID())
+
+	err = <-settleAliceDone
 	require.NoError(err)
-	err = chBobAlice.Settle(ctx, false)
+	err = <-settleBobDone
 	require.NoError(err)
 }

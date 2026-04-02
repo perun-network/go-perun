@@ -40,6 +40,8 @@ import (
 type MultiLedgerSetup struct {
 	Client1, Client2 MultiLedgerClient
 	Asset1, Asset2   multi.Asset
+	Backend1         *MockBackend
+	Backend2         *MockBackend
 	InitBalances     channel.Balances
 	UpdateBalances1  channel.Balances
 	UpdateBalances2  channel.Balances
@@ -67,10 +69,12 @@ func SetupMultiLedgerTest(t *testing.T) MultiLedgerSetup {
 	a2 := NewMultiLedgerAsset(l2.ID(), chtest.NewRandomAsset(rng, channel.TestBackendID))
 
 	return MultiLedgerSetup{
-		Client1: c1,
-		Client2: c2,
-		Asset1:  a1,
-		Asset2:  a2,
+		Client1:  c1,
+		Client2:  c2,
+		Asset1:   a1,
+		Asset2:   a2,
+		Backend1: l1,
+		Backend2: l2,
 		//nolint:mnd // We allow the balances to be magic numbers.
 		InitBalances: channel.Balances{
 			{big.NewInt(10), big.NewInt(0)}, // Asset 1.

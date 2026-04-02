@@ -357,6 +357,18 @@ func (b *MockBackend) setLatestEvent(ch channel.ID, e channel.AdjudicatorEvent) 
 	}
 }
 
+// NotifyCoordinated publishes a CoordinatedEvent for the channel.
+func (b *MockBackend) NotifyCoordinated(ch channel.ID) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	version := uint64(0)
+	if e, ok := b.latestEvents[ch]; ok {
+		version = e.Version()
+	}
+	b.setLatestEvent(ch, channel.NewCoordinatedEvent(ch, &channel.ElapsedTimeout{}, version))
+}
+
 // outcomeRecursive returns the accumulated outcome of the channel and its sub-channels.
 func outcomeRecursive(state *channel.State, subStates channel.StateMap) (outcome channel.Balances) {
 	outcome = state.Balances.Clone()
