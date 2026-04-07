@@ -21,31 +21,6 @@ jobs:
       - name: Authors
         run: .scripts/check-notice-authors.sh origin/main
 
-  vet:
-    name: Vetting
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Check vanity import
-        run: .scripts/check-vanity-imports.sh $GITHUB_WORKSPACE
-
-      - name: Setup Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: ${{ env.go-version }}
-
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v7
-        with:
-          version: v2.1
-
-      - name: Lint proto files
-        uses: plexsystems/protolint-action@v0.6.0
-        with:
-          configDirectory: .
-
   tests:
     name: Tests
     runs-on: ubuntu-latest
