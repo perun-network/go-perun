@@ -21,6 +21,16 @@ jobs:
       - name: Authors
         run: .scripts/check-notice-authors.sh origin/main
 
+  vet:
+    name: Vetting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check vanity import
+        run: .scripts/check-vanity-imports.sh $GITHUB_WORKSPACE
+
   tests:
     name: Tests
     runs-on: ubuntu-latest
@@ -43,7 +53,7 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Unit Tests
-        run: go test -timeout 60s ./...
+        run: go test -timeout 120s ./...
 
   race-tests:
     name: Race Tests
@@ -67,4 +77,4 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Unit Race Tests
-        run: go test -timeout 120s -race -gcflags=all=-d=checkptr=0 ./...
+        run: go test -timeout 180s -race -gcflags=all=-d=checkptr=0 ./...

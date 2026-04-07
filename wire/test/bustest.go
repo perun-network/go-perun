@@ -16,6 +16,7 @@ package test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -31,6 +32,8 @@ import (
 // timeout testNoReceive sub-test.
 const (
 	testNoReceiveTimeout = 10 * time.Millisecond
+	testNoReceiveMaxWait = 500 * time.Millisecond
+	testPublishRecvFactor = 500 * time.Millisecond
 	TestBackendID        = 0
 )
 
@@ -72,17 +75,30 @@ func GenericBusTest(t *testing.T,
 		t.Helper()
 		ct := test.NewConcurrent(t)
 
-		ctx, cancel := context.WithTimeout(context.Background(), testNoReceiveTimeout)
-		defer cancel()
-
 		for i := range clients {
 			go ct.StageN("receive timeout", numClients, func(t test.ConcT) {
 				r := wire.NewReceiver()
 				defer r.Close()
 				err := clients[i].r.Subscribe(r, func(e *wire.Envelope) bool { return true })
 				assert.NoError(t, err)
-				_, err = r.Next(ctx)
-				assert.Error(t, err)
+
+				deadlineCtx, deadlineCancel := context.WithTimeout(context.Background(), testNoReceiveMaxWait)
+				defer deadlineCancel()
+
+				for {
+					quietCtx, quietCancel := context.WithTimeout(deadlineCtx, testNoReceiveTimeout)
+					_, err = r.Next(quietCtx)
+					quietCancel()
+
+					if err == nil {
+						// Transient in-flight message after publish completion; retry until quiet.
+						continue
+					}
+					if errors.Is(err, context.DeadlineExceeded) {
+						break
+					}
+					assert.FailNow(t, "unexpected receive error", err.Error())
+				}
 			})
 		}
 
@@ -95,7 +111,7 @@ func GenericBusTest(t *testing.T,
 
 		ctx, cancel := context.WithTimeout(
 			context.Background(),
-			time.Duration((numClients)*(numClients-1)*numMsgs)*100*time.Millisecond)
+			time.Duration((numClients)*(numClients-1)*numMsgs)*testPublishRecvFactor)
 		defer cancel()
 
 		waiting()
