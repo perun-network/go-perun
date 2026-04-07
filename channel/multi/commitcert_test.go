@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package multi
+package multi //nolint:testpackage // Test needs access to package-local helpers.
 
 import (
 	"bytes"
@@ -54,6 +54,7 @@ func roundTripAndAssert(t *testing.T, cert CommitCert, expectState bool) {
 	require.Equal(t, cert.ChannelID, decoded.ChannelID)
 	require.Equal(t, cert.Version, decoded.Version)
 	require.Equal(t, cert.CoordSig, decoded.CoordSig)
+
 	if expectState {
 		require.NotNil(t, decoded.CanonicalState)
 		require.NoError(t, cert.CanonicalState.Equal(decoded.CanonicalState))
@@ -91,6 +92,7 @@ func newTestCommitCertWithState(t *testing.T, rng *rand.Rand) CommitCert {
 			asset := channel.NewAsset(channel.TestBackendID)
 			alloc := channel.NewAllocation(2, []wallet.BackendID{channel.TestBackendID}, asset)
 			alloc.Balances = channel.Balances{{big.NewInt(9), big.NewInt(3)}}
+
 			return alloc
 		}(),
 		App:     channel.NoApp(),
@@ -104,7 +106,7 @@ func newTestCommitCertWithState(t *testing.T, rng *rand.Rand) CommitCert {
 	return CommitCert{
 		ChannelID:      state.ID,
 		CanonicalState: state,
-		Version:        channel.Version(state.Version),
+		Version:        state.Version,
 		CoordSig:       sig,
 	}
 }
@@ -117,5 +119,6 @@ type mockCommitCertifier struct {
 func (m *mockCommitCertifier) CommitCanonicalState(_ context.Context, cert CommitCert) error {
 	m.called = true
 	m.last = cert
+
 	return nil
 }

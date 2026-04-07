@@ -39,26 +39,6 @@ func TestMultiLedgerDesyncHighestVersion(
 	require := require.New(t)
 	alice, bob := mlt.Client1, mlt.Client2
 
-	parts := []map[wallet.BackendID]wire.Address{alice.WireAddress, bob.WireAddress}
-	initAlloc := channel.NewAllocation(
-		len(parts),
-		[]wallet.BackendID{
-			wallet.BackendID(mlt.Asset1.LedgerBackendID().BackendID()),
-			wallet.BackendID(mlt.Asset2.LedgerBackendID().BackendID()),
-		},
-		mlt.Asset1,
-		mlt.Asset2,
-	)
-	initAlloc.Balances = mlt.InitBalances
-	prop, err := client.NewLedgerChannelProposal(
-		challengeDuration,
-		alice.WalletAddress,
-		initAlloc,
-		parts,
-		client.WithCoordinator(alice.WalletAddress),
-	)
-	require.NoError(err)
-
 	channels := make(chan *client.Channel, 1)
 	errs := make(chan error)
 	//nolint:contextcheck // This is a test.
@@ -72,22 +52,7 @@ func TestMultiLedgerDesyncHighestVersion(
 		AlwaysAcceptUpdateHandler(ctx, errs),
 	)
 
-	chAliceBob, err := alice.ProposeChannel(ctx, prop)
-	require.NoError(err)
-	var chBobAlice *client.Channel
-	select {
-	case chBobAlice = <-channels:
-	case err := <-errs:
-		t.Fatalf("Error in go-routine: %v", err)
-	}
-
-	err = chAliceBob.Update(ctx, func(s *channel.State) {
-		s.Balances = mlt.UpdateBalances1
-	})
-	require.NoError(err)
-	err = chAliceBob.Update(ctx, func(s *channel.State) {
-		s.IsFinal = true
-	})
+	chAliceBob, _, err := proposeAndFinalizeLedgerChannel(ctx, challengeDuration, mlt, alice, bob, channels, errs)
 	require.NoError(err)
 
 	highest := client.NewTestChannel(chAliceBob).AdjudicatorReq().Tx.Version
@@ -95,27 +60,137 @@ func TestMultiLedgerDesyncHighestVersion(
 	stale := highest - 1
 
 	// First attempt: ledgers receive different coordinated versions.
+	attemptCtx1, cancel1 := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel1()
+
 	settleAttempt1 := make(chan error, 1)
+
 	go func() {
-		settleAttempt1 <- chAliceBob.Settle(ctx, false)
+		settleAttempt1 <- chAliceBob.Settle(attemptCtx1, false)
 	}()
-	time.Sleep(100 * time.Millisecond) //nolint:mnd // Allow settle to subscribe and wait for coordination.
+
+	require.NoError(waitForRegisteredOrProgressed(attemptCtx1, chAliceBob))
 	mlt.Backend1.NotifyCoordinatedWithVersion(chAliceBob.ID(), stale)
 	mlt.Backend2.NotifyCoordinatedWithVersion(chAliceBob.ID(), highest)
+
 	err = <-settleAttempt1
 	require.Error(err, "desynchronized coordinated versions must fail settlement")
 
-	// Second attempt: coordinator aligns both ledgers to the highest version.
+	// Second channel: coordinator aligns both ledgers to the highest version.
+	chAliceBob2, chBobAlice2, err := proposeAndFinalizeLedgerChannel(ctx, challengeDuration, mlt, alice, bob, channels, errs)
+	require.NoError(err)
+
+	highest2 := client.NewTestChannel(chAliceBob2).AdjudicatorReq().Tx.Version
+	require.NotZero(highest2)
+
+	attemptCtx2, cancel2 := context.WithTimeout(ctx, 4*time.Second)
+	defer cancel2()
+
 	settleAttempt2 := make(chan error, 1)
+
 	go func() {
-		settleAttempt2 <- chAliceBob.Settle(ctx, false)
+		settleAttempt2 <- chAliceBob2.Settle(attemptCtx2, false)
 	}()
-	time.Sleep(100 * time.Millisecond) //nolint:mnd // Allow settle to subscribe and wait for coordination.
-	mlt.Backend1.NotifyCoordinatedWithVersion(chAliceBob.ID(), highest)
-	mlt.Backend2.NotifyCoordinatedWithVersion(chAliceBob.ID(), highest)
+
+	require.NoError(waitForRegisteredOrProgressed(attemptCtx2, chAliceBob2))
+	mlt.Backend1.NotifyCoordinatedWithVersion(chAliceBob2.ID(), highest2)
+	mlt.Backend2.NotifyCoordinatedWithVersion(chAliceBob2.ID(), highest2)
+
 	err = <-settleAttempt2
 	require.NoError(err)
 
-	err = chBobAlice.Settle(ctx, false)
+	settleBobCtx, cancelBob := context.WithTimeout(ctx, 4*time.Second)
+	defer cancelBob()
+
+	settleBobDone := make(chan error, 1)
+
+	go func() {
+		settleBobDone <- chBobAlice2.Settle(settleBobCtx, false)
+	}()
+
+	require.NoError(waitForRegisteredOrProgressed(settleBobCtx, chBobAlice2))
+	mlt.Backend1.NotifyCoordinatedWithVersion(chBobAlice2.ID(), highest2)
+	mlt.Backend2.NotifyCoordinatedWithVersion(chBobAlice2.ID(), highest2)
+
+	err = <-settleBobDone
 	require.NoError(err)
+}
+
+func proposeAndFinalizeLedgerChannel(
+	ctx context.Context,
+	challengeDuration uint64,
+	mlt MultiLedgerSetup,
+	alice MultiLedgerClient,
+	bob MultiLedgerClient,
+	channels <-chan *client.Channel,
+	errs <-chan error,
+) (*client.Channel, *client.Channel, error) {
+	parts := []map[wallet.BackendID]wire.Address{alice.WireAddress, bob.WireAddress}
+	initAlloc := channel.NewAllocation(
+		len(parts),
+		[]wallet.BackendID{
+			wallet.BackendID(mlt.Asset1.LedgerBackendID().BackendID()),
+			wallet.BackendID(mlt.Asset2.LedgerBackendID().BackendID()),
+		},
+		mlt.Asset1,
+		mlt.Asset2,
+	)
+	initAlloc.Balances = mlt.InitBalances
+
+	prop, err := client.NewLedgerChannelProposal(
+		challengeDuration,
+		alice.WalletAddress,
+		initAlloc,
+		parts,
+		client.WithCoordinator(alice.WalletAddress),
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	chAliceBob, err := alice.ProposeChannel(ctx, prop)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var chBobAlice *client.Channel
+	select {
+	case chBobAlice = <-channels:
+	case err := <-errs:
+		return nil, nil, err
+	}
+
+	err = chAliceBob.Update(ctx, func(s *channel.State) {
+		s.Balances = mlt.UpdateBalances1
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	err = chAliceBob.Update(ctx, func(s *channel.State) {
+		s.IsFinal = true
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return chAliceBob, chBobAlice, nil
+}
+
+func waitForRegisteredOrProgressed(ctx context.Context, ch *client.Channel) error {
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		phase := ch.Phase()
+		if phase == channel.Registered || phase == channel.Progressed || phase == channel.Progressing {
+			return nil
+		}
+
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+		}
+	}
 }

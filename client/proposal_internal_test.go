@@ -113,6 +113,7 @@ func (id testProposalLedgerID) MapKey() multi.LedgerIDMapKey {
 
 type testProposalMultiAsset struct {
 	channel.Asset
+
 	id multi.LedgerBackendID
 }
 
@@ -130,17 +131,21 @@ func makeTestProposalMultiAsset(addr byte, ledgerID string) channel.Asset {
 
 type testProposalAsset struct{ addr byte }
 
-var _ channel.Asset = (*testProposalAsset)(nil)
-var _ encoding.BinaryMarshaler = testProposalAsset{}
-var _ encoding.BinaryUnmarshaler = (*testProposalAsset)(nil)
+var (
+	_ channel.Asset              = (*testProposalAsset)(nil)
+	_ encoding.BinaryMarshaler   = testProposalAsset{}
+	_ encoding.BinaryUnmarshaler = (*testProposalAsset)(nil)
+)
 
 func (a testProposalAsset) MarshalBinary() ([]byte, error) { return []byte{a.addr}, nil }
 func (a *testProposalAsset) UnmarshalBinary(data []byte) error {
 	if len(data) > 0 {
 		a.addr = data[0]
 	}
+
 	return nil
 }
+
 func (a testProposalAsset) Equal(b channel.Asset) bool {
 	other, ok := b.(*testProposalAsset)
 	return ok && other.addr == a.addr
@@ -185,6 +190,7 @@ func TestProposalResponder_Accept_Nil(t *testing.T) {
 func TestPeerRejectedProposalError(t *testing.T) {
 	reason := "some-random-reason"
 	err := newPeerRejectedError("update", reason)
+
 	t.Run("direct_error", func(t *testing.T) {
 		peerRejectedProposalError := PeerRejectedError{}
 		gotPeerRejectedError := errors.As(err, &peerRejectedProposalError)
@@ -210,8 +216,10 @@ func NewRandomBaseChannelProposal(rng *rand.Rand, opts ...channeltest.RandomOpt)
 	} else {
 		opt = make(channeltest.RandomOpt)
 	}
+
 	alloc := channeltest.NewRandomAllocation(rng, channeltest.WithNumParts(opt.NumParts(rng)))
 	app, data := channeltest.NewRandomAppAndData(rng)
+
 	prop, err := makeBaseChannelProposal(
 		rng.Uint64(),
 		alloc,
@@ -220,6 +228,7 @@ func NewRandomBaseChannelProposal(rng *rand.Rand, opts ...channeltest.RandomOpt)
 	if err != nil {
 		panic("Error generating random channel proposal: " + err.Error())
 	}
+
 	return prop
 }
 
@@ -227,11 +236,14 @@ func NewRandomLedgerChannelProposal(rng *rand.Rand, opts ...channeltest.RandomOp
 	opt := make(channeltest.RandomOpt).Append(opts...)
 	base := NewRandomBaseChannelProposal(rng, opt)
 	peers := wiretest.NewRandomAddressesMap(rng, base.NumPeers())
+
 	var bID wallet.BackendID
+
 	bID, err := opt.Backend()
 	if err != nil {
 		bID = wallet.BackendID(channel.TestBackendID)
 	}
+
 	return &LedgerChannelProposalMsg{
 		BaseChannelProposal: base,
 		Participant:         wallettest.NewRandomAddresses(rng, bID),

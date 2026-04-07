@@ -39,43 +39,54 @@ var _ perunio.Serializer = (*CommitCert)(nil)
 // Encode serializes the commit certificate for transport or persistence.
 func (c CommitCert) Encode(w io.Writer) error {
 	hasState := c.CanonicalState != nil
-	if err := perunio.Encode(w, c.ChannelID, c.Version, hasState); err != nil {
+	err := perunio.Encode(w, c.ChannelID, c.Version, hasState)
+	if err != nil {
 		return errors.WithMessage(err, "commit cert encode")
 	}
+
 	if hasState {
-		if err := perunio.Encode(w, c.CanonicalState); err != nil {
+		err = perunio.Encode(w, c.CanonicalState)
+		if err != nil {
 			return errors.WithMessage(err, "commit cert canonical state encode")
 		}
 	}
 
-	sigLen := uint16(len(c.CoordSig))
-	if err := perunio.Encode(w, sigLen); err != nil {
+	sigLen := uint32(len(c.CoordSig))
+	err = perunio.Encode(w, sigLen)
+	if err != nil {
 		return errors.WithMessage(err, "commit cert signature length encode")
 	}
+
 	return errors.WithMessage(perunio.ByteSlice(c.CoordSig).Encode(w), "commit cert signature encode")
 }
 
 // Decode deserializes the commit certificate.
 func (c *CommitCert) Decode(r io.Reader) error {
 	var hasState bool
-	if err := perunio.Decode(r, &c.ChannelID, &c.Version, &hasState); err != nil {
+	err := perunio.Decode(r, &c.ChannelID, &c.Version, &hasState)
+	if err != nil {
 		return errors.WithMessage(err, "commit cert decode")
 	}
+
 	if hasState {
 		c.CanonicalState = new(channel.State)
-		if err := perunio.Decode(r, c.CanonicalState); err != nil {
+		err = perunio.Decode(r, c.CanonicalState)
+		if err != nil {
 			return errors.WithMessage(err, "commit cert canonical state decode")
 		}
 	} else {
 		c.CanonicalState = nil
 	}
 
-	var sigLen uint16
-	if err := perunio.Decode(r, &sigLen); err != nil {
+	var sigLen uint32
+	err = perunio.Decode(r, &sigLen)
+	if err != nil {
 		return errors.WithMessage(err, "commit cert signature length decode")
 	}
+
 	c.CoordSig = make(wallet.Sig, sigLen)
 	sig := perunio.ByteSlice(c.CoordSig)
+
 	return errors.WithMessage(sig.Decode(r), "commit cert signature decode")
 }
 

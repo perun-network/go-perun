@@ -52,9 +52,11 @@ func (c *Channel) Watch(h AdjudicatorEventHandler) error {
 	if err != nil {
 		return err
 	}
+
 	c.machMtx.Lock()
 	c.statesPub = statesPub
 	c.machMtx.Unlock()
+
 	err = c.handleEvents(eventsSub, h)
 	if err != nil {
 		return errors.WithMessage(err, "handling events from watcher")
@@ -62,6 +64,7 @@ func (c *Channel) Watch(h AdjudicatorEventHandler) error {
 
 	err = errors.WithMessage(eventsSub.Err(), "subscription closed")
 	log.Debugf("Subscription closed: %v", err)
+
 	return err
 }
 
@@ -80,11 +83,13 @@ func (c *Channel) startWatching() (watcher.StatesPub, watcher.AdjudicatorSub, er
 		if c.IsLedgerChannel() {
 			return c.client.watcher.StartWatchingLedgerChannel(c.Ctx(), signedState)
 		}
+
 		return c.client.watcher.StartWatchingSubChannel(c.Ctx(), c.parent.ID(), signedState)
 	}()
 	if err != nil {
 		return nil, nil, errors.WithMessage(err, "registering channel with the watcher")
 	}
+
 	ok := c.OnCloseAlways(func() {
 		err := c.client.watcher.StopWatching(c.Ctx(), c.ID())
 		if err != nil {
@@ -94,6 +99,7 @@ func (c *Channel) startWatching() (watcher.StatesPub, watcher.AdjudicatorSub, er
 	if !ok {
 		return nil, nil, errors.WithMessage(err, "channel already closed")
 	}
+
 	return statesPub, eventsSub, nil
 }
 
@@ -104,7 +110,9 @@ func (c *Channel) handleEvents(eventsSub watcher.AdjudicatorSub, h AdjudicatorEv
 			if !ok {
 				return nil
 			}
+
 			log.WithField("channel", c.Params().ID()).WithField("participant", c.Idx()).Infof("event %T: %v", e, e)
+
 			err := c.setMachinePhase(c.Ctx(), e)
 			if err != nil {
 				return errors.WithMessage(err, "setting machine phase")
@@ -156,6 +164,7 @@ func (c *Channel) registerDispute(ctx context.Context) error {
 	// Lock machines of channel and all subchannels recursively.
 	l, err := c.tryLockRecursive(ctx)
 	defer l.Unlock()
+
 	if err != nil {
 		return errors.WithMessage(err, "locking recursive")
 	}
@@ -225,6 +234,7 @@ func (c *Channel) ForceUpdate(ctx context.Context, updater func(*channel.State))
 	if err := c.machine.SetProgressing(ctx, state); err != nil {
 		return errors.WithMessage(err, "updating machine")
 	}
+
 	sig, err := c.machine.Sig(ctx)
 	if err != nil {
 		return errors.WithMessage(err, "signing")
@@ -232,6 +242,7 @@ func (c *Channel) ForceUpdate(ctx context.Context, updater func(*channel.State))
 
 	// Create and send request
 	pr := channel.NewProgressReq(ar, state, sig)
+
 	return errors.WithMessage(c.adjudicator.Progress(ctx, *pr), "progressing")
 }
 
@@ -248,9 +259,16 @@ func (c *Channel) ForceUpdate(ctx context.Context, updater func(*channel.State))
 // to be mined.
 // Returns ChainNotReachableError if the connection to the blockchain network
 // fails when sending a transaction to / reading from the blockchain.
+//
+//nolint:gocognit,cyclop // Settlement orchestrates registration, coordination, recursive locking, withdraw and bookkeeping.
 func (c *Channel) Settle(ctx context.Context, secondary bool) (err error) {
-	isMultiLedger := multi.IsMultiLedgerAssets(c.machine.State().Allocation.Assets)
+	c.machMtx.Lock()
+	assets := append([]channel.Asset(nil), c.machine.State().Assets...)
 	hasCoordinator := len(c.machine.Params().Coordinator) > 0
+	c.machMtx.Unlock()
+
+	isMultiLedger := multi.IsMultiLedgerAssets(assets)
+
 	requiresCoordination := isMultiLedger && hasCoordinator
 	if requiresCoordination || !c.State().IsFinal {
 		err := c.ensureRegistered(ctx)
@@ -269,15 +287,18 @@ func (c *Channel) Settle(ctx context.Context, secondary bool) (err error) {
 		if err := c.client.coordination.RequestCoordination(ctx, c.ID()); err != nil {
 			return errors.WithMessage(err, "requesting coordination")
 		}
+
 		if err := c.client.coordination.AwaitCoordinated(ctx, c.ID()); err != nil {
 			return errors.WithMessage(err, "awaiting coordinated event")
 		}
 	}
+
 	rootID := c.ID()
 
 	// Lock machines of channel and all subchannels recursively.
 	l, err := c.tryLockRecursive(ctx)
 	defer l.Unlock()
+
 	if err != nil {
 		return errors.WithMessage(err, "locking recursive")
 	}
@@ -287,11 +308,14 @@ func (c *Channel) Settle(ctx context.Context, secondary bool) (err error) {
 		if ch.machine.Phase() == channel.Withdrawn {
 			return nil
 		}
+
 		if ch.ID() == rootID && requiresCoordination {
-			if err := ch.machine.SetCoordinated(ctx); err != nil {
+			err := ch.machine.SetCoordinated(ctx)
+			if err != nil {
 				return err
 			}
 		}
+
 		return ch.machine.SetWithdrawing(ctx)
 	}); err != nil {
 		return errors.WithMessage(err, "setting phase `Withdrawing` recursive")
@@ -309,6 +333,7 @@ func (c *Channel) Settle(ctx context.Context, secondary bool) (err error) {
 		if c.machine.Phase() == channel.Withdrawn {
 			return nil
 		}
+
 		return c.machine.SetWithdrawn(ctx)
 	}); err != nil {
 		return errors.WithMessage(err, "setting phase `Withdrawn` recursive")
@@ -323,15 +348,18 @@ func (c *Channel) Settle(ctx context.Context, secondary bool) (err error) {
 				return
 			}
 		}
+
 		for i, wall := range c.wallet {
 			wall.DecrementUsage(c.machine.Account()[i].Address())
 		}
+
 		return
 	}); err != nil {
 		return errors.WithMessage(err, "decrementing account usage")
 	}
 
 	c.Log().Info("Withdrawal successful.")
+
 	return nil
 }
 
@@ -342,7 +370,9 @@ func (c *Channel) withdraw(ctx context.Context, secondary bool) error {
 		if err != nil {
 			return errors.WithMessage(err, "creating sub-channel state map")
 		}
+
 		req := c.machine.AdjudicatorReq()
+
 		req.Secondary = secondary
 		if err := c.adjudicator.Withdraw(ctx, req, subStates); err != nil {
 			return errors.WithMessage(err, "calling Withdraw")
@@ -352,7 +382,9 @@ func (c *Channel) withdraw(ctx context.Context, secondary bool) error {
 		if c.hasLockedFunds() {
 			return errors.New("cannot settle off-chain with locked funds")
 		}
-		if err := c.withdrawSubChannelIntoParent(ctx); err != nil {
+
+		err := c.withdrawSubChannelIntoParent(ctx)
+		if err != nil {
 			return errors.WithMessage(err, "withdrawing into parent channel")
 		}
 
@@ -360,13 +392,16 @@ func (c *Channel) withdraw(ctx context.Context, secondary bool) error {
 		if c.hasLockedFunds() {
 			return errors.New("cannot settle off-chain with locked funds")
 		}
-		if err := c.parent.withdrawVirtualChannel(ctx, c); err != nil {
+
+		err := c.parent.withdrawVirtualChannel(ctx, c)
+		if err != nil {
 			return errors.WithMessage(err, "withdrawing into parent channel")
 		}
 
 	default:
 		panic("invalid channel type")
 	}
+
 	return nil
 }
 
@@ -377,6 +412,7 @@ func (c *Channel) hasParticipant(id map[wallet.BackendID]wire.Address) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -395,9 +431,12 @@ func (c *Channel) tryLockRecursive(ctx context.Context) (l mutexList, err error)
 		if !c.machMtx.TryLockCtx(ctx) {
 			return errors.Errorf("locking machine mutex in time: %v", ctx.Err())
 		}
+
 		l = append(l, &c.machMtx)
+
 		return nil
 	})
+
 	return
 }
 
@@ -405,21 +444,26 @@ func (c *Channel) tryLockRecursive(ctx context.Context) (l mutexList, err error)
 func (c *Channel) applyToSubChannelsRecursive(f func(*Channel) error) (err error) {
 	for _, subAlloc := range c.state().Locked {
 		subID := subAlloc.ID
+
 		var subCh *Channel
+
 		subCh, err = c.client.Channel(subID)
 		if err != nil {
 			err = errors.WithMessagef(err, "getting sub-channel: %v", subID)
 			return
 		}
+
 		err = f(subCh)
 		if err != nil {
 			return
 		}
+
 		err = subCh.applyToSubChannelsRecursive(f)
 		if err != nil {
 			return
 		}
 	}
+
 	return
 }
 
@@ -431,6 +475,7 @@ func (c *Channel) applyRecursive(f func(*Channel) error) (err error) {
 	}
 
 	err = c.applyToSubChannelsRecursive(f)
+
 	return
 }
 
@@ -460,8 +505,10 @@ func (c *Channel) gatherSubChannelStates() (states []channel.SignedState, err er
 			State:  c.machine.CurrentTX().State,
 			Sigs:   c.machine.CurrentTX().Sigs,
 		})
+
 		return nil
 	})
+
 	return
 }
 
@@ -473,6 +520,7 @@ func (c *Channel) subChannelStateMap() (states channel.StateMap, err error) {
 		states[c.ID()] = c.state()
 		return nil
 	})
+
 	return
 }
 
@@ -503,6 +551,7 @@ func (c *Channel) ensureRegistered(ctx context.Context) error {
 	case <-ctx.Done():
 		err = ctx.Err()
 	}
+
 	return err
 }
 
@@ -516,7 +565,8 @@ func (c *Channel) awaitRegistered(ctx context.Context) error {
 	}
 
 	defer func() {
-		if err := sub.Close(); err != nil {
+		err := sub.Close()
+		if err != nil {
 			c.Log().Warn("Subscription closed with error:", err)
 		}
 	}()
@@ -527,6 +577,7 @@ func (c *Channel) awaitRegistered(ctx context.Context) error {
 	// Scan for event.
 	for {
 		var e channel.AdjudicatorEvent
+
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
@@ -534,6 +585,7 @@ func (c *Channel) awaitRegistered(ctx context.Context) error {
 			if !ok {
 				return sub.Err()
 			}
+
 			e = next
 		}
 
@@ -552,9 +604,11 @@ func (c *Channel) awaitRegistered(ctx context.Context) error {
 		// even if the channel has been registered by someone else.
 		l, err := c.tryLockRecursive(ctx)
 		defer l.Unlock()
+
 		if err != nil {
 			return errors.WithMessage(err, "locking recursive")
 		}
+
 		err = c.setRegisteredRecursive(ctx)
 		if err != nil {
 			return errors.WithMessage(err, "setting phase `Registered` recursive")
@@ -574,6 +628,7 @@ func (c *Channel) consumeAdjudicatorEvents(
 
 	go func() {
 		defer close(events)
+
 		for e := sub.Next(); e != nil; e = sub.Next() {
 			if coordinated, ok := e.(*channel.CoordinatedEvent); ok {
 				c.client.coordination.NotifyCoordinated(coordinated.ID())
@@ -599,12 +654,15 @@ func (c *Channel) startCoordinationConsumer(ctx context.Context) (func(), error)
 	}
 
 	done := make(chan struct{})
+
 	go func() {
 		defer close(done)
+
 		for e := sub.Next(); e != nil; e = sub.Next() {
 			if coordinated, ok := e.(*channel.CoordinatedEvent); ok {
 				c.client.coordination.NotifyCoordinated(coordinated.ID())
 			}
+
 			select {
 			case <-ctx.Done():
 				return
@@ -614,9 +672,11 @@ func (c *Channel) startCoordinationConsumer(ctx context.Context) (func(), error)
 	}()
 
 	return func() {
-		if err := sub.Close(); err != nil {
+		err := sub.Close()
+		if err != nil {
 			c.Log().Warn("Subscription closed with error:", err)
 		}
+
 		<-done
 	}, nil
 }

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package channel
+package channel //nolint:testpackage // Test validates internal phase-machine behavior.
 
 import (
 	"math/big"
@@ -34,8 +34,10 @@ func (a *testAsset) UnmarshalBinary(data []byte) error {
 	if len(data) > 0 {
 		a.id = data[0]
 	}
+
 	return nil
 }
+
 func (a *testAsset) Equal(b Asset) bool {
 	other, ok := b.(*testAsset)
 	return ok && a.id == other.id
@@ -60,6 +62,7 @@ func (id testLedgerBackendID) LedgerID() testLedgerID {
 
 type testMultiLedgerAsset struct {
 	testAsset
+
 	ledgerID testLedgerBackendID
 }
 
@@ -77,10 +80,12 @@ func newStateMachineForPhase2(t *testing.T, rng *rand.Rand, phase Phase, assets 
 
 	accs, parts := wtest.NewRandomAccounts(rng, 2, TestBackendID)
 	nonce := NonceFromBytes([]byte{1, 2, 3})
+
 	var coordinator map[wallet.BackendID]wallet.Address
 	if withCoordinator {
 		coordinator = map[wallet.BackendID]wallet.Address{TestBackendID: parts[0][TestBackendID]}
 	}
+
 	params := *NewParamsUnsafe(60, parts, NoApp(), nonce, true, false, ZeroAux, coordinator)
 
 	sm, err := NewStateMachine(accs[0], params)
@@ -107,8 +112,9 @@ func newStateMachineForPhase2(t *testing.T, rng *rand.Rand, phase Phase, assets 
 	// Give one non-zero balance to avoid accidental zero-sum edge cases.
 	state.Balances[0][0] = big.NewInt(1)
 
-	sm.machine.currentTX = Transaction{State: state, Sigs: make([]wallet.Sig, len(params.Parts))}
-	sm.machine.phase = phase
+	sm.currentTX = Transaction{State: state, Sigs: make([]wallet.Sig, len(params.Parts))}
+	sm.phase = phase
+
 	return sm
 }
 

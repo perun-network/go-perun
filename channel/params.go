@@ -55,6 +55,7 @@ func NonceFromBytes(b []byte) Nonce {
 	if len(b) > MaxNonceLen {
 		log.Panicf("NonceFromBytes: longer than MaxNonceLen (%d/%d)", len(b), MaxNonceLen)
 	}
+
 	return new(big.Int).SetBytes(b)
 }
 
@@ -96,20 +97,25 @@ type Params struct {
 // is also calculated here and persisted because it probably is an expensive
 // hash operation.
 func NewParams(challengeDuration uint64, parts []map[wallet.BackendID]wallet.Address, app App, nonce Nonce, ledger bool, virtual bool, aux Aux,
-	coordinator map[wallet.BackendID]wallet.Address) (*Params, error) {
-	if err := ValidateParameters(challengeDuration, len(parts), app, nonce); err != nil {
+	coordinator map[wallet.BackendID]wallet.Address,
+) (*Params, error) {
+	err := ValidateParameters(challengeDuration, len(parts), app, nonce)
+	if err != nil {
 		return nil, errors.WithMessage(err, "invalid parameter for NewParams")
 	}
+
 	for _, ps := range parts {
 		for id, p := range ps {
 			if backend[p.BackendID()] == nil {
 				return nil, errors.Errorf("no backend with id %d", p.BackendID())
 			}
+
 			if id != p.BackendID() {
 				return nil, errors.Errorf("participant %v has wrong backend id %d", p, p.BackendID())
 			}
 		}
 	}
+
 	return NewParamsUnsafe(challengeDuration, parts, app, nonce, ledger, virtual, aux, coordinator), nil
 }
 
@@ -117,7 +123,8 @@ func NewParams(challengeDuration uint64, parts []map[wallet.BackendID]wallet.Add
 // sanity checks. The channel id is also calculated here and persisted because
 // it probably is an expensive hash operation.
 func NewParamsUnsafe(challengeDuration uint64, parts []map[wallet.BackendID]wallet.Address, app App, nonce Nonce, ledger bool, virtual bool, aux Aux,
-	coordinator map[wallet.BackendID]wallet.Address) *Params {
+	coordinator map[wallet.BackendID]wallet.Address,
+) *Params {
 	p := &Params{
 		ChallengeDuration: challengeDuration,
 		Parts:             parts,
@@ -134,7 +141,9 @@ func NewParamsUnsafe(challengeDuration uint64, parts []map[wallet.BackendID]wall
 	if err != nil || id == Zero {
 		log.Panicf("Could not calculate channel id: %v", err)
 	}
+
 	p.id = id
+
 	return p
 }
 
@@ -161,21 +170,26 @@ func ValidateProposalParameters(challengeDuration uint64, numParts int, app App)
 	case !IsStateApp(app) && !IsActionApp(app):
 		return errors.New("app must be either an Action- or StateApp")
 	}
+
 	return nil
 }
 
 // ValidateParameters checks that the arguments form valid Params. Checks
 // everything from ValidateProposalParameters, and that the nonce is not nil.
 func ValidateParameters(challengeDuration uint64, numParts int, app App, nonce Nonce) error {
-	if err := ValidateProposalParameters(challengeDuration, numParts, app); err != nil {
+	err := ValidateProposalParameters(challengeDuration, numParts, app)
+	if err != nil {
 		return err
 	}
+
 	if nonce == nil {
 		return errors.New("nonce must not be nil")
 	}
+
 	if len(nonce.Bytes()) > MaxNonceLen {
 		return errors.Errorf("nonce too long (%d > %d)", len(nonce.Bytes()), MaxNonceLen)
 	}
+
 	return nil
 }
 
@@ -186,6 +200,7 @@ func CloneAddresses(as []map[wallet.BackendID]wallet.Address) []map[wallet.Backe
 	for i, a := range as {
 		cloneMap[i] = wallet.CloneAddressesMap(a)
 	}
+
 	return cloneMap
 }
 
@@ -249,6 +264,7 @@ func (p *Params) Decode(r stdio.Reader) error {
 	if err != nil {
 		return err
 	}
+
 	if len(coordinator) == 0 {
 		coordinator = nil
 	}
@@ -257,6 +273,7 @@ func (p *Params) Decode(r stdio.Reader) error {
 	if err != nil {
 		return err
 	}
+
 	*p = *_p
 
 	return nil

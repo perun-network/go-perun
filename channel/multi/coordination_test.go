@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package multi
+package multi //nolint:testpackage // Test exercises package-internal coordination behavior.
 
 import (
 	"context"
@@ -27,12 +27,14 @@ import (
 func TestCoordinationRegistry_RequestAwaitNotify(t *testing.T) {
 	r := NewCoordinationRegistry()
 	chID := channel.ID{1}
+
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
 	require.NoError(t, r.RequestCoordination(ctx, chID))
 
 	done := make(chan error, 1)
+
 	go func() {
 		done <- r.AwaitCoordinated(ctx, chID)
 	}()
@@ -44,10 +46,12 @@ func TestCoordinationRegistry_RequestAwaitNotify(t *testing.T) {
 func TestCoordinationRegistry_AwaitWithoutRequest(t *testing.T) {
 	r := NewCoordinationRegistry()
 	chID := channel.ID{2}
+
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
 	done := make(chan error, 1)
+
 	go func() {
 		done <- r.AwaitCoordinated(ctx, chID)
 	}()
@@ -62,11 +66,13 @@ func TestCoordinationRegistry_AwaitCanceled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	done := make(chan error, 1)
+
 	go func() {
 		done <- r.AwaitCoordinated(ctx, chID)
 	}()
 
 	cancel()
+
 	err := <-done
 	require.ErrorIs(t, err, context.Canceled)
 
@@ -77,20 +83,24 @@ func TestCoordinationRegistry_AwaitCanceled(t *testing.T) {
 func TestCoordinationRegistry_ConcurrentAwaiters(t *testing.T) {
 	r := NewCoordinationRegistry()
 	chID := channel.ID{4}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
 	const n = 16
-	for i := 0; i < n; i++ {
+	for range n {
 		require.NoError(t, r.RequestCoordination(ctx, chID))
 	}
 
 	errs := make(chan error, n)
+
 	var wg sync.WaitGroup
 	wg.Add(n)
-	for i := 0; i < n; i++ {
+
+	for range n {
 		go func() {
 			defer wg.Done()
+
 			errs <- r.AwaitCoordinated(ctx, chID)
 		}()
 	}

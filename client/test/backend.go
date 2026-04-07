@@ -80,6 +80,7 @@ func NewMockBackend(rng *rand.Rand, id string) *MockBackend {
 	rndSource := rand.NewSource(rng.Int63())
 	//nolint:gosec // OK to use weak RNG for testing.
 	backendRng := rand.New(rndSource)
+
 	return &MockBackend{
 		log:          log.Default(),
 		rng:          newThreadSafePrng(backendRng),
@@ -138,6 +139,7 @@ func (b *MockBackend) NewFunder(acc wallet.Address) *MockFunder {
 func (b *MockBackend) Fund(ctx context.Context, req channel.FundingReq, acc wallet.Address) error {
 	b.log.Infof("Funding: %+v", req)
 	b.assetHolder.Fund(req, b, acc)
+
 	return b.assetHolder.WaitForFunding(ctx, req)
 }
 
@@ -177,11 +179,14 @@ func (b *MockBackend) Register(_ context.Context, req channel.AdjudicatorReq, su
 
 	// Check register requirements.
 	states := make([]*channel.State, 1+len(subChannels))
+
 	states[0] = req.Tx.State
 	for i, subCh := range subChannels {
 		states[1+i] = subCh.State
 	}
-	if err := b.checkStates(states, checkRegister); err != nil {
+
+	err := b.checkStates(states, checkRegister)
+	if err != nil {
 		return err
 	}
 
@@ -197,6 +202,7 @@ func (b *MockBackend) Register(_ context.Context, req channel.AdjudicatorReq, su
 	if duration > math.MaxInt64 {
 		return fmt.Errorf("challenge duration %d is too large", duration)
 	}
+
 	timeout := time.Now().Add(time.Duration(duration) * time.Millisecond)
 	for _, ch := range channels {
 		b.setLatestEvent(
@@ -210,6 +216,7 @@ func (b *MockBackend) Register(_ context.Context, req channel.AdjudicatorReq, su
 			),
 		)
 	}
+
 	return nil
 }
 
@@ -238,10 +245,12 @@ func (b *MockBackend) Progress(_ context.Context, req channel.ProgressReq) error
 
 	b.mu.Lock()
 	defer b.mu.Unlock()
+
 	duration := req.Params.ChallengeDuration
 	if duration > math.MaxInt64 {
 		return fmt.Errorf("challenge duration %d is too large", duration)
 	}
+
 	timeout := time.Now().Add(time.Duration(duration) * time.Millisecond)
 	b.setLatestEvent(
 		req.Params.ID(),
@@ -252,6 +261,7 @@ func (b *MockBackend) Progress(_ context.Context, req channel.ProgressReq) error
 			req.Idx,
 		),
 	)
+
 	return nil
 }
 
@@ -263,18 +273,22 @@ func (b *MockBackend) Withdraw(_ context.Context, req channel.AdjudicatorReq, su
 	// Check withdraw requirements.
 	states := make([]*channel.State, 1+len(subStates))
 	states[0] = req.Tx.State
+
 	i := 1
 	for _, s := range subStates {
 		states[i] = s
 		i++
 	}
-	if err := b.checkStates(states, checkWithdraw); err != nil {
+
+	err := b.checkStates(states, checkWithdraw)
+	if err != nil {
 		return err
 	}
 
 	// Redistribute balances if not done already.
 	b.assetHolder.mtx.Lock()
 	defer b.assetHolder.mtx.Unlock()
+
 	ch := req.Params.ID()
 	if !b.isConcluded(ch) {
 		outcome := outcomeRecursive(req.Tx.State, subStates)
@@ -285,6 +299,7 @@ func (b *MockBackend) Withdraw(_ context.Context, req channel.AdjudicatorReq, su
 		if funding == nil {
 			funding = channel.MakeBalances(len(req.Tx.Assets), req.Tx.NumParts())
 		}
+
 		fundingSum := funding.Sum()
 
 		for a, assetOutcome := range outcome {
@@ -292,6 +307,7 @@ func (b *MockBackend) Withdraw(_ context.Context, req channel.AdjudicatorReq, su
 			if fundingSum[a].Cmp(outcomeSum[a]) < 0 {
 				continue
 			}
+
 			for p, amount := range assetOutcome {
 				funding[a][p].Set(amount)
 			}
@@ -311,6 +327,7 @@ func (b *MockBackend) Withdraw(_ context.Context, req channel.AdjudicatorReq, su
 	if !b.isConcluded(ch) {
 		b.setLatestEvent(ch, channel.NewConcludedEvent(ch, &channel.ElapsedTimeout{}, req.Tx.Version))
 	}
+
 	return nil
 }
 
@@ -338,9 +355,11 @@ func (b *MockBackend) NewBalanceReader(acc wallet.Address) *MockBalanceReader {
 func (b *MockBackend) Balance(p wallet.Address, a channel.Asset) *big.Int {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+
 	return b.balance(p, a)
 }
 
+//nolint:funcorder // Keep helper close to subscription/balance internals used by tests.
 func (b *MockBackend) setLatestEvent(ch channel.ID, e channel.AdjudicatorEvent) {
 	b.latestEvents[ch] = e
 	// Update subscriptions.
@@ -366,6 +385,7 @@ func (b *MockBackend) NotifyCoordinated(ch channel.ID) {
 	if e, ok := b.latestEvents[ch]; ok {
 		version = e.Version()
 	}
+
 	b.setLatestEvent(ch, channel.NewCoordinatedEvent(ch, &channel.ElapsedTimeout{}, version))
 }
 
@@ -388,10 +408,12 @@ func outcomeRecursive(state *channel.State, subStates channel.StateMap) (outcome
 				if len(subAlloc.IndexMap) > 0 {
 					_p = int(subAlloc.IndexMap[p])
 				}
+
 				outcome[a][_p].Add(outcome[a][_p], bal)
 			}
 		}
 	}
+
 	return
 }
 
@@ -404,6 +426,7 @@ func checkRegister(e channel.AdjudicatorEvent, ok bool, s *channel.State) error 
 	if ok && e.Version() > v {
 		return fmt.Errorf("invalid version: expected >=%v, got %v", e.Version(), v)
 	}
+
 	return nil
 }
 
@@ -417,34 +440,42 @@ func checkWithdraw(e channel.AdjudicatorEvent, ok bool, s *channel.State) error 
 	} else if ok && e.Version() != v {
 		return fmt.Errorf("invalid version: expected %v, got %v", e.Version(), v)
 	}
+
 	return nil
 }
 
 func (b *MockBackend) checkStates(states []*channel.State, op checkStateFunc) error {
 	for _, s := range states {
-		if err := b.checkState(s, op); err != nil {
+		err := b.checkState(s, op)
+		if err != nil {
 			return err
 		}
 	}
+
 	return nil
 }
 
 func (b *MockBackend) checkState(s *channel.State, op checkStateFunc) error {
 	e, ok := b.latestEvents[s.ID]
-	if err := op(e, ok, s); err != nil {
+	err := op(e, ok, s)
+	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
 func (b *MockBackend) setBalance(p wallet.Address, a channel.Asset, v *big.Int) {
 	partKey := newAddressMapKey(p)
+
 	partBals, ok := b.balances[partKey]
 	if !ok {
 		log.Debug("part not found", p)
+
 		partBals = make(map[string]*big.Int)
 		b.balances[partKey] = partBals
 	}
+
 	log.Debug("set balance:", p, v)
 	partBals[newAssetMapKey(a)] = new(big.Int).Set(v)
 }
@@ -454,9 +485,11 @@ func (b *MockBackend) isConcluded(ch channel.ID) bool {
 	if !ok {
 		return false
 	}
+
 	if _, ok := e.(*channel.ConcludedEvent); !ok {
 		return false
 	}
+
 	return true
 }
 
@@ -477,10 +510,12 @@ func (b *MockBackend) balance(p wallet.Address, a channel.Asset) *big.Int {
 	if !ok {
 		return big.NewInt(0)
 	}
+
 	bal, ok := partBals[newAssetMapKey(a)]
 	if !ok {
 		return big.NewInt(0)
 	}
+
 	return new(big.Int).Set(bal)
 }
 
@@ -502,6 +537,7 @@ func encodableAsString(e encoding.BinaryMarshaler) string {
 	if err != nil {
 		panic(err)
 	}
+
 	return string(buff)
 }
 
@@ -516,6 +552,7 @@ func (b *MockBackend) removeSubscription(ch channel.ID, sub *MockSubscription) {
 				return i, true
 			}
 		}
+
 		return 0, false
 	}()
 
@@ -559,6 +596,7 @@ func (f *assetHolder) Fund(req channel.FundingReq, b *MockBackend, acc wallet.Ad
 		}
 
 		bal := req.Agreement[i][req.Idx]
+
 		b.mu.Lock()
 		b.subBalance(acc, asset, bal)
 		b.mu.Unlock()
@@ -577,7 +615,9 @@ func (f *assetHolder) WaitForFunding(ctx context.Context, req channel.FundingReq
 	if duration > math.MaxInt64 {
 		return fmt.Errorf("challenge duration %d is too large", duration)
 	}
+
 	challengeDuration := time.Duration(duration) * time.Second
+
 	fundCtx, cancel := context.WithTimeout(ctx, challengeDuration)
 	defer cancel()
 
@@ -602,6 +642,7 @@ func (f *assetHolder) initFund(req channel.FundingReq) {
 		f.fundedWgs[req.Params.ID()] = &sync.WaitGroup{}
 		f.fundedWgs[req.Params.ID()].Add(len(req.Params.Parts))
 	}
+
 	if f.balances[req.Params.ID()] == nil {
 		f.balances[req.Params.ID()] = channel.MakeBalances(len(req.State.Assets), req.State.NumParts())
 	}
@@ -632,6 +673,7 @@ func (s *MockSubscription) Close() error {
 	s.onClose()
 	close(s.events)
 	close(s.err)
+
 	return nil
 }
 

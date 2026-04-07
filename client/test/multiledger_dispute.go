@@ -94,6 +94,7 @@ func TestMultiLedgerDispute(
 	// Open channel.
 	chAliceBob, err := alice.ProposeChannel(ctx, prop)
 	require.NoError(err, "opening channel between Alice and Bob")
+
 	var chBobAlice *client.Channel
 	select {
 	case chBobAlice = <-channels:
@@ -111,6 +112,7 @@ func TestMultiLedgerDispute(
 
 	// Notify Bob when an update is complete.
 	done := make(chan struct{}, 1)
+
 	chBobAlice.OnUpdate(func(from, to *channel.State) {
 		done <- struct{}{}
 	})
@@ -136,17 +138,20 @@ func TestMultiLedgerDispute(
 	require.NoError(err)
 
 	// Coordination wait must respect context cancellation while no event is emitted.
-	cancelCtx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond) //nolint:mnd // Small timeout to test cancellation behavior.
+	cancelCtx, cancel := context.WithTimeout(ctx, 50*time.Millisecond) //nolint:mnd // Small timeout to test cancellation behavior.
 	defer cancel()
+
 	err = chBobAlice.Settle(cancelCtx, false)
 	require.Error(err)
 	assert.ErrorIs(t, err, context.DeadlineExceeded)
 
 	// Settle should block until coordinated event arrives through adjudicator subscription.
 	settleDone := make(chan error, 1)
+
 	go func() {
 		settleDone <- chAliceBob.Settle(ctx, false)
 	}()
+
 	select {
 	case err = <-settleDone:
 		t.Fatalf("settle returned before coordination event: %v", err)
@@ -155,12 +160,14 @@ func TestMultiLedgerDispute(
 
 	mlt.Backend1.NotifyCoordinated(chAliceBob.ID())
 	mlt.Backend2.NotifyCoordinated(chAliceBob.ID())
+
 	err = <-settleDone
 	require.NoError(err)
 
 	// Bob can settle successfully once coordinated has been signaled.
 	mlt.Backend1.NotifyCoordinated(chAliceBob.ID())
 	mlt.Backend2.NotifyCoordinated(chAliceBob.ID())
+
 	err = chBobAlice.Settle(ctx, false)
 	require.NoError(err)
 
@@ -206,11 +213,13 @@ func EqualBalancesWithDelta(
 		for j, bal1 := range assetBals1 {
 			bal2 := assetBals2[j]
 			lb := new(big.Int).Sub(bal1, delta)
+
 			ub := new(big.Int).Add(bal1, delta)
 			if bal2.Cmp(lb) < 0 || bal2.Cmp(ub) > 0 {
 				return false
 			}
 		}
 	}
+
 	return true
 }

@@ -35,12 +35,14 @@ func (a *Adjudicator) Subscribe(ctx context.Context, chID channel.ID) (channel.A
 			asub.Close()
 			return nil, err
 		}
+
 		asub.subs = append(asub.subs, sub)
+		subscription := sub
 
 		go func() {
 			for {
 				select {
-				case asub.events <- sub.Next():
+				case asub.events <- subscription.Next():
 				case <-asub.done:
 					return
 				}
@@ -48,7 +50,7 @@ func (a *Adjudicator) Subscribe(ctx context.Context, chID channel.ID) (channel.A
 		}()
 
 		go func() {
-			asub.errors <- sub.Err()
+			asub.errors <- subscription.Err()
 		}()
 	}
 
@@ -81,6 +83,7 @@ func (s *AdjudicatorSubscription) Err() error {
 			return err
 		}
 	}
+
 	return nil
 }
 
@@ -91,5 +94,6 @@ func (s *AdjudicatorSubscription) Close() error {
 	}
 
 	close(s.done)
+
 	return nil
 }
