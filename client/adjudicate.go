@@ -51,9 +51,18 @@ func (c *Channel) Watch(h AdjudicatorEventHandler) error {
 	if err != nil {
 		return err
 	}
+
+	// Replay the current state after the watcher is fully connected to the
+	// client. This closes a race where an update can happen after startWatching
+	// returned but before statesPub is assigned.
+	var currentTx channel.Transaction
 	c.machMtx.Lock()
 	c.statesPub = statesPub
+	currentTx = c.machine.CurrentTX()
 	c.machMtx.Unlock()
+	if err := statesPub.Publish(c.Ctx(), currentTx); err != nil {
+		log.WithField("Version", currentTx.Version).Errorf("replaying state to watcher: %v", err)
+	}
 	err = c.handleEvents(eventsSub, h)
 	if err != nil {
 		return errors.WithMessage(err, "handling events from watcher")

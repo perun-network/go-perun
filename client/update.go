@@ -407,7 +407,7 @@ func (c *Channel) enableNotifyUpdate(ctx context.Context) error {
 	}
 
 	if err := c.statesPub.Publish(ctx, c.machine.CurrentTX()); err != nil {
-		c.Log().WithField("Version", c.state().Version).Errorf("publishing state to watcher: %w", err)
+		c.Log().WithField("Version", c.state().Version).Errorf("publishing state to watcher: %v", err)
 	}
 	return nil
 }
