@@ -169,6 +169,12 @@ func (c *Client) EnablePersistence(pr persistence.PersistRestorer) {
 	c.pr = pr
 }
 
+// EnableCoordinationRequester sets an optional outbound requester for
+// coordinator interactions during multi-ledger settlement.
+func (c *Client) EnableCoordinationRequester(requester multi.CoordinationRequester) {
+	c.coordination.SetRequester(requester)
+}
+
 // Channel queries a channel by its ID.
 func (c *Client) Channel(id channel.ID) (*Channel, error) {
 	if ch, ok := c.channels.Channel(id); ok {

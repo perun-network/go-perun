@@ -264,7 +264,8 @@ func (c *Channel) ForceUpdate(ctx context.Context, updater func(*channel.State))
 func (c *Channel) Settle(ctx context.Context, secondary bool) (err error) {
 	c.machMtx.Lock()
 	assets := append([]channel.Asset(nil), c.machine.State().Assets...)
-	hasCoordinator := len(c.machine.Params().Coordinator) > 0
+	coordinator := wallet.CloneAddressesMap(c.machine.Params().Coordinator)
+	hasCoordinator := len(coordinator) > 0
 	c.machMtx.Unlock()
 
 	isMultiLedger := multi.IsMultiLedgerAssets(assets)
@@ -284,7 +285,7 @@ func (c *Channel) Settle(ctx context.Context, secondary bool) (err error) {
 		}
 		defer stopCoordinationConsumer()
 
-		if err := c.client.coordination.RequestCoordination(ctx, c.ID()); err != nil {
+		if err := c.client.coordination.RequestCoordination(ctx, c.ID(), coordinator); err != nil {
 			return errors.WithMessage(err, "requesting coordination")
 		}
 

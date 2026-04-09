@@ -19,13 +19,20 @@ import (
 	"sync"
 
 	"perun.network/go-perun/channel"
+	"perun.network/go-perun/wallet"
 )
+
+// CoordinationRequester sends an off-chain coordination request for a channel.
+type CoordinationRequester interface {
+	RequestCoordination(ctx context.Context, chID channel.ID, coordinator map[wallet.BackendID]wallet.Address) error
+}
 
 // CoordinationRegistry stores coordination waiters keyed by channel ID.
 type CoordinationRegistry struct {
-	mu      sync.Mutex
-	waiters map[channel.ID][]*coordinationWaiter
-	ready   map[channel.ID]struct{}
+	mu        sync.Mutex
+	waiters   map[channel.ID][]*coordinationWaiter
+	ready     map[channel.ID]struct{}
+	requester CoordinationRequester
 }
 
 type coordinationWaiter struct {
@@ -35,32 +42,47 @@ type coordinationWaiter struct {
 
 // NewCoordinationRegistry creates a new coordination registry.
 func NewCoordinationRegistry() *CoordinationRegistry {
+	return NewCoordinationRegistryWithRequester(nil)
+}
+
+// NewCoordinationRegistryWithRequester creates a new coordination registry.
+func NewCoordinationRegistryWithRequester(requester CoordinationRequester) *CoordinationRegistry {
 	return &CoordinationRegistry{
-		waiters: make(map[channel.ID][]*coordinationWaiter),
-		ready:   make(map[channel.ID]struct{}),
+		waiters:   make(map[channel.ID][]*coordinationWaiter),
+		ready:     make(map[channel.ID]struct{}),
+		requester: requester,
 	}
 }
 
+// SetRequester configures the outbound coordination requester.
+func (r *CoordinationRegistry) SetRequester(requester CoordinationRequester) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.requester = requester
+}
+
 // RequestCoordination registers a waiter for chID.
-// The off-chain coordinator request itself is intentionally a placeholder.
-func (r *CoordinationRegistry) RequestCoordination(ctx context.Context, chID channel.ID) error {
+// If a requester is configured, it also sends an outbound off-chain request.
+func (r *CoordinationRegistry) RequestCoordination(ctx context.Context, chID channel.ID, coordinator map[wallet.BackendID]wallet.Address) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
 	default:
 	}
 
+	w := &coordinationWaiter{ch: make(chan struct{})}
+
 	r.mu.Lock()
 	_, coordinated := r.ready[chID]
+	if !coordinated {
+		r.waiters[chID] = append(r.waiters[chID], w)
+	}
+	requester := r.requester
 	r.mu.Unlock()
+
 	if coordinated {
 		return nil
 	}
-
-	w := &coordinationWaiter{ch: make(chan struct{})}
-	r.mu.Lock()
-	r.waiters[chID] = append(r.waiters[chID], w)
-	r.mu.Unlock()
 
 	// Ensure canceled contexts do not leave stale waiters behind.
 	go func() {
@@ -70,6 +92,14 @@ func (r *CoordinationRegistry) RequestCoordination(ctx context.Context, chID cha
 		case <-w.ch:
 		}
 	}()
+
+	if requester != nil {
+		err := requester.RequestCoordination(ctx, chID, coordinator)
+		if err != nil {
+			r.removeWaiter(chID, w)
+			return err
+		}
+	}
 
 	return nil
 }

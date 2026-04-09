@@ -16,12 +16,14 @@ package multi //nolint:testpackage // Test exercises package-internal coordinati
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 	"perun.network/go-perun/channel"
+	"perun.network/go-perun/wallet"
 )
 
 func TestCoordinationRegistry_RequestAwaitNotify(t *testing.T) {
@@ -31,7 +33,7 @@ func TestCoordinationRegistry_RequestAwaitNotify(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	require.NoError(t, r.RequestCoordination(ctx, chID))
+	require.NoError(t, r.RequestCoordination(ctx, chID, nil))
 
 	done := make(chan error, 1)
 
@@ -89,7 +91,7 @@ func TestCoordinationRegistry_ConcurrentAwaiters(t *testing.T) {
 
 	const n = 16
 	for range n {
-		require.NoError(t, r.RequestCoordination(ctx, chID))
+		require.NoError(t, r.RequestCoordination(ctx, chID, nil))
 	}
 
 	errs := make(chan error, n)
@@ -112,4 +114,47 @@ func TestCoordinationRegistry_ConcurrentAwaiters(t *testing.T) {
 	for err := range errs {
 		require.NoError(t, err)
 	}
+}
+
+func TestCoordinationRegistry_RequesterCalled(t *testing.T) {
+	r := NewCoordinationRegistry()
+	requester := &mockCoordinationRequester{}
+	r.SetRequester(requester)
+
+	chID := channel.ID{5}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	coordinator := map[wallet.BackendID]wallet.Address{}
+	require.NoError(t, r.RequestCoordination(ctx, chID, coordinator))
+	require.True(t, requester.called)
+	require.Equal(t, chID, requester.lastID)
+	require.Equal(t, coordinator, requester.lastCoordinator)
+}
+
+func TestCoordinationRegistry_RequesterError(t *testing.T) {
+	r := NewCoordinationRegistry()
+	r.SetRequester(&mockCoordinationRequester{err: errors.New("request failed")})
+
+	chID := channel.ID{6}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	err := r.RequestCoordination(ctx, chID, nil)
+	require.EqualError(t, err, "request failed")
+}
+
+type mockCoordinationRequester struct {
+	called          bool
+	lastID          channel.ID
+	lastCoordinator map[wallet.BackendID]wallet.Address
+	err             error
+}
+
+func (m *mockCoordinationRequester) RequestCoordination(_ context.Context, chID channel.ID, coordinator map[wallet.BackendID]wallet.Address) error {
+	m.called = true
+	m.lastID = chID
+	m.lastCoordinator = coordinator
+
+	return m.err
 }
