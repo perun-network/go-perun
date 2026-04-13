@@ -386,6 +386,9 @@ func (ch *ch) handleEventsFromChain(registerer channel.Registerer, chRegistry *r
 		case *channel.ProgressedEvent:
 			log.Debugf("Received progressed event from chain: %v", e)
 			ch.eventsToClientPub.publish(e)
+		case *channel.CoordinatedEvent:
+			log.Debugf("Received coordinated event from chain: %v", e)
+			ch.eventsToClientPub.publish(e)
 		case *channel.ConcludedEvent:
 			log.Debugf("Received concluded event from chain: %v", e)
 			ch.eventsToClientPub.publish(e)

@@ -32,6 +32,9 @@ type CoordinationRegistry struct {
 	mu        sync.Mutex
 	waiters   map[channel.ID][]*coordinationWaiter
 	ready     map[channel.ID]struct{}
+	expected  map[channel.ID]int
+	received  map[channel.ID]int
+	seen      map[channel.ID]map[LedgerBackendKey]struct{}
 	requester CoordinationRequester
 }
 
@@ -50,8 +53,35 @@ func NewCoordinationRegistryWithRequester(requester CoordinationRequester) *Coor
 	return &CoordinationRegistry{
 		waiters:   make(map[channel.ID][]*coordinationWaiter),
 		ready:     make(map[channel.ID]struct{}),
+		expected:  make(map[channel.ID]int),
+		received:  make(map[channel.ID]int),
+		seen:      make(map[channel.ID]map[LedgerBackendKey]struct{}),
 		requester: requester,
 	}
+}
+
+// SetExpectedCoordinatedEvents configures how many CoordinatedEvents must be
+// observed for a channel before waiters are released.
+func (r *CoordinationRegistry) SetExpectedCoordinatedEvents(chID channel.ID, expected int) {
+	if expected < 1 {
+		expected = 1
+	}
+
+	r.mu.Lock()
+	if _, coordinated := r.ready[chID]; coordinated {
+		r.mu.Unlock()
+		return
+	}
+
+	r.expected[chID] = expected
+
+	var waiters []*coordinationWaiter
+	if r.received[chID] >= expected {
+		waiters = r.markReadyLocked(chID)
+	}
+	r.mu.Unlock()
+
+	r.releaseWaiters(waiters)
 }
 
 // SetRequester configures the outbound coordination requester.
@@ -73,12 +103,24 @@ func (r *CoordinationRegistry) RequestCoordination(ctx context.Context, chID cha
 	w := &coordinationWaiter{ch: make(chan struct{})}
 
 	r.mu.Lock()
+	if _, ok := r.expected[chID]; !ok {
+		// Preserve legacy one-event behavior if no explicit threshold was set.
+		r.expected[chID] = 1
+	}
+
+	var waiters []*coordinationWaiter
+	if r.received[chID] >= r.expected[chID] {
+		waiters = r.markReadyLocked(chID)
+	}
+
 	_, coordinated := r.ready[chID]
 	if !coordinated {
 		r.waiters[chID] = append(r.waiters[chID], w)
 	}
 	requester := r.requester
 	r.mu.Unlock()
+
+	r.releaseWaiters(waiters)
 
 	if coordinated {
 		return nil
@@ -113,8 +155,20 @@ func (r *CoordinationRegistry) AwaitCoordinated(ctx context.Context, chID channe
 	}
 
 	r.mu.Lock()
+	if _, ok := r.expected[chID]; !ok {
+		// Preserve legacy one-event behavior if no explicit threshold was set.
+		r.expected[chID] = 1
+	}
+
+	var waiters []*coordinationWaiter
+	if r.received[chID] >= r.expected[chID] {
+		waiters = r.markReadyLocked(chID)
+	}
+
 	_, coordinated := r.ready[chID]
 	r.mu.Unlock()
+
+	r.releaseWaiters(waiters)
 	if coordinated {
 		return nil
 	}
@@ -129,14 +183,72 @@ func (r *CoordinationRegistry) AwaitCoordinated(ctx context.Context, chID channe
 	}
 }
 
-// NotifyCoordinated closes all waiters for chID and wakes any awaiting callers.
+// NotifyCoordinated records one observed CoordinatedEvent for chID.
+// Waiters are released only once the expected event count is reached.
+//
+// Prefer NotifyCoordinatedFromLedger when the event source ledger is known.
 func (r *CoordinationRegistry) NotifyCoordinated(chID channel.ID) {
 	r.mu.Lock()
+	if _, coordinated := r.ready[chID]; coordinated {
+		r.mu.Unlock()
+		return
+	}
+
+	r.received[chID]++
+	waiters := r.waitersIfReadyLocked(chID)
+	r.mu.Unlock()
+
+	r.releaseWaiters(waiters)
+}
+
+// NotifyCoordinatedFromLedger records one coordinated event for a specific
+// source ledger and ignores duplicates from the same ledger.
+func (r *CoordinationRegistry) NotifyCoordinatedFromLedger(chID channel.ID, ledger LedgerBackendKey) {
+	r.mu.Lock()
+	if _, coordinated := r.ready[chID]; coordinated {
+		r.mu.Unlock()
+		return
+	}
+
+	if _, ok := r.seen[chID]; !ok {
+		r.seen[chID] = make(map[LedgerBackendKey]struct{})
+	}
+
+	if _, duplicate := r.seen[chID][ledger]; duplicate {
+		r.mu.Unlock()
+		return
+	}
+
+	r.seen[chID][ledger] = struct{}{}
+	r.received[chID]++
+
+	waiters := r.waitersIfReadyLocked(chID)
+	r.mu.Unlock()
+
+	r.releaseWaiters(waiters)
+}
+
+func (r *CoordinationRegistry) waitersIfReadyLocked(chID channel.ID) []*coordinationWaiter {
+
+	expected, ok := r.expected[chID]
+	if !ok || r.received[chID] < expected {
+		return nil
+	}
+
+	return r.markReadyLocked(chID)
+}
+
+func (r *CoordinationRegistry) markReadyLocked(chID channel.ID) []*coordinationWaiter {
 	waiters := r.waiters[chID]
 	delete(r.waiters, chID)
 	r.ready[chID] = struct{}{}
-	r.mu.Unlock()
+	delete(r.expected, chID)
+	delete(r.received, chID)
+	delete(r.seen, chID)
+	return waiters
+}
 
+func (r *CoordinationRegistry) releaseWaiters(waiters []*coordinationWaiter) {
 	for _, w := range waiters {
 		close(w.ch)
 	}

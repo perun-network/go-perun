@@ -116,6 +116,117 @@ func TestCoordinationRegistry_ConcurrentAwaiters(t *testing.T) {
 	}
 }
 
+func TestCoordinationRegistry_NotifyWaitsForExpectedCount(t *testing.T) {
+	r := NewCoordinationRegistry()
+	chID := channel.ID{7}
+	r.SetExpectedCoordinatedEvents(chID, 2)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	require.NoError(t, r.RequestCoordination(ctx, chID, nil))
+
+	done := make(chan error, 1)
+	go func() {
+		done <- r.AwaitCoordinated(ctx, chID)
+	}()
+
+	r.NotifyCoordinated(chID)
+
+	select {
+	case err := <-done:
+		t.Fatalf("await returned before expected coordinated count reached: %v", err)
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	r.NotifyCoordinated(chID)
+	require.NoError(t, <-done)
+}
+
+func TestCoordinationRegistry_NotifyBeforeAwaitRespectsExpectedCount(t *testing.T) {
+	r := NewCoordinationRegistry()
+	chID := channel.ID{8}
+	r.SetExpectedCoordinatedEvents(chID, 2)
+
+	r.NotifyCoordinated(chID)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	done := make(chan error, 1)
+	go func() {
+		done <- r.AwaitCoordinated(ctx, chID)
+	}()
+
+	select {
+	case err := <-done:
+		t.Fatalf("await returned before expected coordinated count reached: %v", err)
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	r.NotifyCoordinated(chID)
+	require.NoError(t, <-done)
+}
+
+func TestCoordinationRegistry_NotifyFromLedger_DeduplicatesByLedger(t *testing.T) {
+	r := NewCoordinationRegistry()
+	chID := channel.ID{9}
+	r.SetExpectedCoordinatedEvents(chID, 2)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	require.NoError(t, r.RequestCoordination(ctx, chID, nil))
+
+	done := make(chan error, 1)
+	go func() {
+		done <- r.AwaitCoordinated(ctx, chID)
+	}()
+
+	ledgerA := LedgerBackendKey{BackendID: 1, LedgerID: "ledger-a"}
+	ledgerB := LedgerBackendKey{BackendID: 1, LedgerID: "ledger-b"}
+
+	r.NotifyCoordinatedFromLedger(chID, ledgerA)
+	r.NotifyCoordinatedFromLedger(chID, ledgerA) // duplicate from same ledger must not advance count
+
+	select {
+	case err := <-done:
+		t.Fatalf("await returned before second distinct ledger coordinated: %v", err)
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	r.NotifyCoordinatedFromLedger(chID, ledgerB)
+	require.NoError(t, <-done)
+}
+
+func TestCoordinationRegistry_NotifyFromLedger_BeforeAwait(t *testing.T) {
+	r := NewCoordinationRegistry()
+	chID := channel.ID{10}
+	r.SetExpectedCoordinatedEvents(chID, 2)
+
+	ledgerA := LedgerBackendKey{BackendID: 2, LedgerID: "ledger-a"}
+	ledgerB := LedgerBackendKey{BackendID: 2, LedgerID: "ledger-b"}
+
+	r.NotifyCoordinatedFromLedger(chID, ledgerA)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	done := make(chan error, 1)
+	go func() {
+		done <- r.AwaitCoordinated(ctx, chID)
+	}()
+
+	select {
+	case err := <-done:
+		t.Fatalf("await returned before second distinct ledger coordinated: %v", err)
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	r.NotifyCoordinatedFromLedger(chID, ledgerB)
+	require.NoError(t, <-done)
+}
+
 func TestCoordinationRegistry_RequesterCalled(t *testing.T) {
 	r := NewCoordinationRegistry()
 	requester := &mockCoordinationRequester{}

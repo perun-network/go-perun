@@ -230,6 +230,10 @@ func Test_Watcher_WithoutSubchannel(t *testing.T) {
 	t.Run("happy/concluded_event", func(t *testing.T) {
 		testIfEventsAreRelayed(t, makeConcludedEvents)
 	})
+	// Test if coordinated events are relayed to the adjudicator subscription.
+	t.Run("happy/coordinated_event", func(t *testing.T) {
+		testIfEventsAreRelayed(t, makeCoordinatedEvents)
+	})
 }
 
 func Test_Watcher_WithSubchannel(t *testing.T) {
@@ -929,6 +933,20 @@ func makeConcludedEvents(txs ...channel.Transaction) []channel.AdjudicatorEvent 
 	events := make([]channel.AdjudicatorEvent, len(txs))
 	for i, tx := range txs {
 		events[i] = &channel.ConcludedEvent{
+			AdjudicatorEventBase: channel.AdjudicatorEventBase{
+				IDV:      tx.ID,
+				TimeoutV: &channel.ElapsedTimeout{},
+				VersionV: tx.Version,
+			},
+		}
+	}
+	return events
+}
+
+func makeCoordinatedEvents(txs ...channel.Transaction) []channel.AdjudicatorEvent {
+	events := make([]channel.AdjudicatorEvent, len(txs))
+	for i, tx := range txs {
+		events[i] = &channel.CoordinatedEvent{
 			AdjudicatorEventBase: channel.AdjudicatorEventBase{
 				IDV:      tx.ID,
 				TimeoutV: &channel.ElapsedTimeout{},

@@ -16,6 +16,7 @@ package client
 
 import (
 	"context"
+	stdsync "sync"
 
 	"perun.network/go-perun/wallet"
 
@@ -139,6 +140,9 @@ func (c *Channel) setMachinePhase(ctx context.Context, e channel.AdjudicatorEven
 		err = c.machine.SetRegistered(ctx)
 	case *channel.ProgressedEvent:
 		err = c.machine.SetProgressed(ctx, e)
+	case *channel.CoordinatedEvent:
+		// Coordinated events are consumed by coordination wait paths.
+		// The generic watcher loop must treat them as valid and non-fatal.
 	case *channel.ConcludedEvent:
 		// Do nothing as there is currently no corresponding phase in the channel machine.
 	default:
@@ -271,6 +275,11 @@ func (c *Channel) Settle(ctx context.Context, secondary bool) (err error) {
 	isMultiLedger := multi.IsMultiLedgerAssets(assets)
 
 	requiresCoordination := isMultiLedger && hasCoordinator
+	ledgers := participatingLedgers(assets)
+	if requiresCoordination {
+		c.client.coordination.SetExpectedCoordinatedEvents(c.ID(), participatingLedgerCount(assets))
+	}
+
 	if requiresCoordination || !c.State().IsFinal {
 		err := c.ensureRegistered(ctx)
 		if err != nil {
@@ -279,7 +288,7 @@ func (c *Channel) Settle(ctx context.Context, secondary bool) (err error) {
 	}
 
 	if requiresCoordination {
-		stopCoordinationConsumer, err := c.startCoordinationConsumer(ctx)
+		stopCoordinationConsumer, err := c.startCoordinationConsumer(ctx, ledgers)
 		if err != nil {
 			return errors.WithMessage(err, "starting coordination event consumer")
 		}
@@ -362,6 +371,59 @@ func (c *Channel) Settle(ctx context.Context, secondary bool) (err error) {
 	c.Log().Info("Withdrawal successful.")
 
 	return nil
+}
+
+type coordinationLedgerAsset interface {
+	LedgerBackendID() multi.LedgerBackendID
+}
+
+type coordinationLedgerKey struct {
+	backendID uint32
+	ledgerID  string
+}
+
+func participatingLedgerCount(assets []channel.Asset) int {
+	ledgers := participatingLedgers(assets)
+	if len(ledgers) == 0 {
+		return 1
+	}
+
+	return len(ledgers)
+}
+
+func participatingLedgers(assets []channel.Asset) []multi.LedgerBackendID {
+	seen := make(map[coordinationLedgerKey]struct{})
+	ledgers := make([]multi.LedgerBackendID, 0)
+
+	for _, asset := range assets {
+		ledgerAsset, ok := asset.(coordinationLedgerAsset)
+		if !ok {
+			continue
+		}
+
+		ledgerID := ledgerAsset.LedgerBackendID()
+		key := coordinationLedgerKey{
+			backendID: ledgerID.BackendID(),
+			ledgerID:  string(ledgerID.LedgerID().MapKey()),
+		}
+
+		if _, exists := seen[key]; exists {
+			continue
+		}
+
+		seen[key] = struct{}{}
+		ledgers = append(ledgers, ledgerID)
+	}
+
+	return ledgers
+}
+
+func coordinationLedgerBackendKey(id multi.LedgerBackendID) multi.LedgerBackendKey {
+	return multi.LedgerBackendKey{BackendID: id.BackendID(), LedgerID: string(id.LedgerID().MapKey())}
+}
+
+type coordinationLedgerAdjudicator interface {
+	LedgerAdjudicator(multi.LedgerBackendID) (channel.Adjudicator, bool)
 }
 
 func (c *Channel) withdraw(ctx context.Context, secondary bool) error {
@@ -631,10 +693,6 @@ func (c *Channel) consumeAdjudicatorEvents(
 		defer close(events)
 
 		for e := sub.Next(); e != nil; e = sub.Next() {
-			if coordinated, ok := e.(*channel.CoordinatedEvent); ok {
-				c.client.coordination.NotifyCoordinated(coordinated.ID())
-			}
-
 			select {
 			case events <- e:
 			case <-ctx.Done():
@@ -648,7 +706,17 @@ func (c *Channel) consumeAdjudicatorEvents(
 	return events, stop
 }
 
-func (c *Channel) startCoordinationConsumer(ctx context.Context) (func(), error) {
+func (c *Channel) startCoordinationConsumer(ctx context.Context, ledgers []multi.LedgerBackendID) (func(), error) {
+	if len(ledgers) > 0 {
+		if source, ok := c.adjudicator.(coordinationLedgerAdjudicator); ok {
+			return c.startPerLedgerCoordinationConsumer(ctx, source, ledgers)
+		}
+	}
+
+	return c.startMergedCoordinationConsumer(ctx)
+}
+
+func (c *Channel) startMergedCoordinationConsumer(ctx context.Context) (func(), error) {
 	sub, err := c.adjudicator.Subscribe(ctx, c.Params().ID())
 	if err != nil {
 		return nil, errors.WithMessage(err, "subscribing to adjudicator events")
@@ -678,6 +746,80 @@ func (c *Channel) startCoordinationConsumer(ctx context.Context) (func(), error)
 			c.Log().Warn("Subscription closed with error:", err)
 		}
 
+		<-done
+	}, nil
+}
+
+func (c *Channel) startPerLedgerCoordinationConsumer(
+	ctx context.Context,
+	source coordinationLedgerAdjudicator,
+	ledgers []multi.LedgerBackendID,
+) (func(), error) {
+	type keyedSub struct {
+		key multi.LedgerBackendKey
+		sub channel.AdjudicatorSubscription
+	}
+
+	subs := make([]keyedSub, 0, len(ledgers))
+	closeSubs := func() {
+		for _, s := range subs {
+			if err := s.sub.Close(); err != nil {
+				c.Log().Warnf("coordination subscription close error for ledger %v: %v", s.key, err)
+			}
+		}
+	}
+
+	for _, ledger := range ledgers {
+		adj, ok := source.LedgerAdjudicator(ledger)
+		if !ok {
+			closeSubs()
+			return nil, errors.Errorf("missing adjudicator for ledger %v", coordinationLedgerBackendKey(ledger))
+		}
+
+		sub, err := adj.Subscribe(ctx, c.Params().ID())
+		if err != nil {
+			closeSubs()
+			return nil, errors.WithMessagef(err, "subscribing to adjudicator events for ledger %v", coordinationLedgerBackendKey(ledger))
+		}
+
+		subs = append(subs, keyedSub{key: coordinationLedgerBackendKey(ledger), sub: sub})
+	}
+
+	var wg stdsync.WaitGroup
+	done := make(chan struct{})
+
+	for _, s := range subs {
+		s := s
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+
+			for e := s.sub.Next(); e != nil; e = s.sub.Next() {
+				if _, ok := e.(*channel.CoordinatedEvent); ok {
+					c.client.coordination.NotifyCoordinatedFromLedger(c.ID(), s.key)
+				}
+
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
+			}
+
+			if err := s.sub.Err(); err != nil {
+				c.Log().Warnf("coordination subscription closed with error for ledger %v: %v", s.key, err)
+			}
+		}()
+	}
+
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	return func() {
+		closeSubs()
 		<-done
 	}, nil
 }
