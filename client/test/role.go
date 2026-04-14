@@ -30,6 +30,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"perun.network/go-perun/channel"
+	"perun.network/go-perun/channel/multi"
 	"perun.network/go-perun/channel/persistence"
 	"perun.network/go-perun/client"
 	"perun.network/go-perun/log"
@@ -126,6 +127,12 @@ type (
 		WalletAddress map[wallet.BackendID]wallet.Address
 	}
 )
+
+// WithCoordinationRequester returns a ClientOption that configures a coordination
+// requester for test clients. This is useful for testing multi-ledger coordination flows.
+func WithCoordinationRequester(requester multi.CoordinationRequester) client.ClientOption {
+	return client.WithCoordinationRequester(requester)
+}
 
 // NewClients creates new test clients from role setup specifications.
 func NewClients(t *testing.T, rng *rand.Rand, setups []RoleSetup) []*Client {

@@ -172,6 +172,55 @@ func main() {
 }
 ```
 
+### Multi-Ledger Channels with Coordinator
+
+For multi-ledger channels spanning multiple blockchains, _go-perun_ supports coordination through a Trusted Third Party (TTP) coordinator service.
+The coordinator helps resolve state disputes and canonicalize state across ledgers during settlement.
+
+To enable coordinator support in your client:
+
+```go
+import (
+	"perun.network/go-perun/channel/multi"
+	"perun.network/go-perun/client"
+	"perun.network/go-perun/wire/net/libp2p"
+)
+
+// Create a libp2p account for communication with the coordinator
+coordinatorAccount := libp2p.NewRandomAccount(rng)
+defer coordinatorAccount.Close()
+
+// Create a requester that sends coordination requests to the coordinator
+requester := libp2p.NewRelayCoordinationRequester(coordinatorAccount)
+
+// Create or initialize your client
+c := client.New(
+	perunID, bus, funder, adjudicator, wallet, watcher,
+	// Pass the coordinator requester as an option
+	client.WithCoordinationRequester(requester),
+)
+
+// When proposing a multi-ledger channel, include the coordinator addresses:
+coordinatorAddrs := map[wallet.BackendID]wallet.Address{
+	// map each ledger's backend ID to the coordinator address on that ledger
+}
+prop := client.NewLedgerChannelProposal(
+	challengeDuration,
+	yourAddress,
+	initialAllocation,
+	participants,
+	client.WithCoordinator(coordinatorAddrs),
+)
+
+// Settlement automatically requests coordination from the coordinator.
+// During settlement, if coordination is needed (multi-ledger channels),
+// the client will request coordination from the TTP, wait for approval,
+// and then proceed with on-chain settlement.
+err := ch.Settle(ctx, false)
+```
+
+The coordinator service (external TTP) should implement the coordination protocol defined in `external-integration-checklists.md`.
+
 For a full-fledged example, have a look at our CLI Demo [perun-eth-demo](https://github.com/perun-network/perun-eth-demo).
 Go mobile wrappers for <img src="https://developer.android.com/images/brand/Android_Robot.svg?hl=de" width="25" alt="Android"> and iOS App development can be found at [perun-eth-mobile](https://github.com/perun-network/perun-eth-mobile).
 

@@ -53,6 +53,19 @@ type Client struct {
 	coordination      *multi.CoordinationRegistry
 }
 
+// ClientOption is a functional option for configuring a Client.
+type ClientOption func(*Client)
+
+// WithCoordinationRequester returns a ClientOption that configures an outbound
+// requester for off-chain coordination during multi-ledger settlement.
+// The requester is used by channels with Coordinator parameters to request
+// coordination decisions from a TTP coordinator service.
+func WithCoordinationRequester(requester multi.CoordinationRequester) ClientOption {
+	return func(c *Client) {
+		c.coordination.SetRequester(requester)
+	}
+}
+
 // New creates a new State Channel Client.
 //
 // address is the channel network address of this client. It is the persistend
@@ -68,7 +81,11 @@ type Client struct {
 // The wallet is used to resolve addresses to accounts when creating or
 // restoring channels.
 //
-// If any argument is nil, New panics.
+// opts are optional configuration options applied after client initialization.
+// Common options include:
+//   - WithCoordinationRequester(requester) to configure an off-chain coordinator
+//
+// If any required argument is nil, New panics.
 func New(
 	address map[wallet.BackendID]wire.Address,
 	bus wire.Bus,
@@ -76,6 +93,7 @@ func New(
 	adjudicator channel.Adjudicator,
 	wallet map[wallet.BackendID]wallet.Wallet,
 	watcher watcher.Watcher,
+	opts ...ClientOption,
 ) (c *Client, err error) {
 	if address == nil {
 		log.Panic("address must not be nil")
@@ -114,6 +132,12 @@ func New(
 
 	c.fundingWatcher = newStateWatcher(c.matchFundingProposal)
 	c.settlementWatcher = newStateWatcher(c.matchSettlementProposal)
+
+	// Apply client options
+	for _, opt := range opts {
+		opt(c)
+	}
+
 	return c, nil
 }
 

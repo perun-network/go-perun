@@ -171,6 +171,7 @@ func setupClient(
 	t *testing.T, rng *rand.Rand,
 	l1, l2 *MockBackend, bus wire.Bus,
 	bID wallet.BackendID,
+	opts ...client.ClientOption,
 ) MultiLedgerClient {
 	t.Helper()
 	require := require.New(t)
@@ -203,6 +204,7 @@ func setupClient(
 		adj,
 		map[wallet.BackendID]wallet.Wallet{channel.TestBackendID: w},
 		watcher,
+		opts...,
 	)
 	require.NoError(err)
 
