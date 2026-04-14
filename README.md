@@ -70,7 +70,9 @@ The following features are planned for future releases:
 
 ### Backends
 
- _go-perun_ supports multiple **blockchain backends**. A backend is automatically initialized when its top-level package `backend/<name>` is imported.#### Backend Map
+ _go-perun_ supports multiple **blockchain backends**. A backend is automatically initialized when its top-level package `backend/<name>` is imported.
+ 
+ #### Backend Map
 
 | ID  | Backend    | Payment Channel Status | Cross-Chain Status | go-perun Version | Repository                                                                           |
 | --- | ---------- | ---------------------- | ------------------ | ---------------- | ------------------------------------------------------------------------------------ |

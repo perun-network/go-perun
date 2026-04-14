@@ -31,7 +31,12 @@ type CommitCert struct {
 	ChannelID      channel.ID
 	CanonicalState *channel.State
 	Version        channel.Version
-	CoordSig       wallet.Sig
+	// CoordSig is a backend-native signature on CanonicalState.
+	//
+	// It follows the same backend dispatch path as any channel state
+	// signature: coordinators should produce it via channel.Sign and backends
+	// should verify it via channel.Verify (through the coordinator address' backend).
+	CoordSig wallet.Sig
 }
 
 var _ perunio.Serializer = (*CommitCert)(nil)
@@ -94,5 +99,34 @@ func (c *CommitCert) Decode(r io.Reader) error {
 // Coordinated phase. The external TTP service calls this after selecting the
 // canonical state to trigger the on-chain Coordinated transition.
 type CommitCertifier interface {
+	// CommitCanonicalState verifies and submits a coordinator commit cert.
+	//
+	// Signature verification semantics are backend-agnostic: implementations
+	// should verify CoordSig against cert.CanonicalState using channel.Verify
+	// with the configured coordinator address for the target backend.
 	CommitCanonicalState(ctx context.Context, cert CommitCert) error
+}
+
+// SignCoordinatedState signs a canonical state for inclusion in CommitCert.
+//
+// It uses the registered channel backend for bID, i.e., the same state-signing
+// semantics as participant signatures.
+func SignCoordinatedState(
+	acc wallet.Account,
+	state *channel.State,
+	bID wallet.BackendID,
+) (wallet.Sig, error) {
+	return channel.Sign(acc, state, bID)
+}
+
+// VerifyCoordinatedStateSig verifies a CommitCert coordinator signature against
+// the canonical state.
+//
+// Verification dispatches by coordinator.BackendID() via channel.Verify.
+func VerifyCoordinatedStateSig(
+	coordinator wallet.Address,
+	state *channel.State,
+	sig wallet.Sig,
+) (bool, error) {
+	return channel.Verify(coordinator, state, sig)
 }

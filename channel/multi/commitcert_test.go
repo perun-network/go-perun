@@ -24,8 +24,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	_ "perun.network/go-perun/backend/sim/channel"
+	_ "perun.network/go-perun/backend/sim/wallet"
 	"perun.network/go-perun/channel"
 	"perun.network/go-perun/wallet"
+	wtest "perun.network/go-perun/wallet/test"
 	"perun.network/go-perun/wire/perunio"
 	pkgtest "polycry.pt/poly-go/test"
 )
@@ -40,6 +42,23 @@ func TestCommitCert_RoundTripAndCertifierDelivery(t *testing.T) {
 		cert := newTestCommitCertWithState(t, rng)
 		roundTripAndAssert(t, cert, true)
 	})
+}
+
+func TestCommitCert_SignVerifyCoordinatedStateSig(t *testing.T) {
+	rng := pkgtest.Prng(t)
+	state := newTestCommitCertWithState(t, rng).CanonicalState
+	require.NotNil(t, state)
+
+	wallet := wtest.RandomWallet(channel.TestBackendID)
+	acc := wallet.NewRandomAccount(rng)
+	coordAddr := acc.Address()
+
+	sig, err := SignCoordinatedState(acc, state, channel.TestBackendID)
+	require.NoError(t, err)
+
+	ok, err := VerifyCoordinatedStateSig(coordAddr, state, sig)
+	require.NoError(t, err)
+	require.True(t, ok)
 }
 
 func roundTripAndAssert(t *testing.T, cert CommitCert, expectState bool) {

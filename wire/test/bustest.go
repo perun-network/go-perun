@@ -31,10 +31,10 @@ import (
 
 // timeout testNoReceive sub-test.
 const (
-	testNoReceiveTimeout = 10 * time.Millisecond
-	testNoReceiveMaxWait = 500 * time.Millisecond
+	testNoReceiveTimeout  = 10 * time.Millisecond
+	testNoReceiveMaxWait  = 500 * time.Millisecond
 	testPublishRecvFactor = 500 * time.Millisecond
-	TestBackendID        = 0
+	TestBackendID         = 0
 )
 
 // GenericBusTest tests the general functionality of a bus in the happy case: it
